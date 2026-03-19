@@ -1,0 +1,31 @@
+:root {
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+main {
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 12px;
+}
+
+p {
+  margin: 0;
+}
