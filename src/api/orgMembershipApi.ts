@@ -109,26 +109,26 @@ export type CreateInvitationResponse = {
 };
 
 export async function registerUser(payload: RegisterUserPayload) {
-  return apiRequestAnonymous<RegisterUserResponse>('/users/users/register', {
+  return apiRequestAnonymous<RegisterUserResponse>('/users/api/users/register', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export async function getMyProfile() {
-  return apiRequest<UserProfile>('/users/users/me');
+  return apiRequest<UserProfile>('/users/api/users/me');
 }
 
 export async function getMyOrganizations(status?: string) {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiRequest<UserOrganizationsResponse>(
-    `/users/users/me/organizations${query}`,
+    `/users/api/users/me/organizations${query}`,
   );
 }
 
 export async function getMyAccess(organizationId: string) {
   return apiRequest<AccessResponse>(
-    `/users/users/me/access?organizationId=${organizationId}`,
+    `/users/api/users/me/access?organizationId=${organizationId}`,
   );
 }
 
@@ -138,7 +138,7 @@ export async function getOrganizationMembers(
 ) {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiRequest<OrganizationMembersResponse>(
-    `/users/organizations/${organizationId}/members${query}`,
+    `/users/api/organizations/${organizationId}/members${query}`,
   );
 }
 
@@ -147,7 +147,7 @@ export async function getOrganizationMemberById(
   membershipId: string,
 ) {
   return apiRequest<OrganizationMember>(
-    `/users/organizations/${organizationId}/members/${membershipId}`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}`,
   );
 }
 
@@ -156,13 +156,13 @@ export async function getOrganizationRoles(
   includeSystem = true,
 ) {
   return apiRequest<OrganizationRolesResponse>(
-    `/users/organizations/${organizationId}/roles?includeSystem=${includeSystem}`,
+    `/users/api/organizations/${organizationId}/roles?includeSystem=${includeSystem}`,
   );
 }
 
 export async function getPermissionsCatalog(organizationId: string) {
   return apiRequest<PermissionsCatalogResponse>(
-    `/users/organizations/${organizationId}/permissions`,
+    `/users/api/organizations/${organizationId}/permissions`,
   );
 }
 
@@ -172,7 +172,7 @@ export async function getOrganizationInvitations(
 ) {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return apiRequest<OrganizationInvitationsResponse>(
-    `/users/organizations/${organizationId}/invitations${query}`,
+    `/users/api/organizations/${organizationId}/invitations${query}`,
   );
 }
 
@@ -186,7 +186,7 @@ export async function createCustomRole(
     permissionCodes: string[];
   },
 ) {
-  return apiRequest(`/users/organizations/${organizationId}/roles/custom`, {
+  return apiRequest(`/users/api/organizations/${organizationId}/roles/custom`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -203,7 +203,7 @@ export async function updateCustomRole(
   },
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/roles/custom/${roleId}`,
+    `/users/api/organizations/${organizationId}/roles/custom/${roleId}`,
     {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -213,7 +213,7 @@ export async function updateCustomRole(
 
 export async function deleteCustomRole(organizationId: string, roleId: string) {
   return apiRequest(
-    `/users/organizations/${organizationId}/roles/custom/${roleId}`,
+    `/users/api/organizations/${organizationId}/roles/custom/${roleId}`,
     {
       method: 'DELETE',
     },
@@ -226,7 +226,7 @@ export async function assignMemberRoles(
   roleCodes: string[],
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}/roles`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}/roles`,
     {
       method: 'POST',
       body: JSON.stringify({ roleCodes }),
@@ -240,7 +240,7 @@ export async function revokeMemberRole(
   roleCode: string,
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}/roles/${encodeURIComponent(roleCode)}`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}/roles/${encodeURIComponent(roleCode)}`,
     {
       method: 'DELETE',
     },
@@ -253,7 +253,7 @@ export async function updateMember(
   payload: { department: string | null; title: string | null },
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}`,
     {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -266,7 +266,7 @@ export async function deactivateMember(
   membershipId: string,
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}/deactivate`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}/deactivate`,
     {
       method: 'POST',
     },
@@ -278,7 +278,7 @@ export async function activateMember(
   membershipId: string,
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}/activate`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}/activate`,
     {
       method: 'POST',
     },
@@ -290,7 +290,7 @@ export async function removeMember(
   membershipId: string,
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/members/${membershipId}`,
+    `/users/api/organizations/${organizationId}/members/${membershipId}`,
     {
       method: 'DELETE',
     },
@@ -302,7 +302,7 @@ export async function createInvitation(
   payload: { roleCodes: string[]; expiresAt: string },
 ) {
   return apiRequest<CreateInvitationResponse>(
-    `/users/organizations/${organizationId}/invitations`,
+    `/users/api/organizations/${organizationId}/invitations`,
     {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -315,7 +315,7 @@ export async function revokeInvitation(
   invitationId: string,
 ) {
   return apiRequest(
-    `/users/organizations/${organizationId}/invitations/${invitationId}/revoke`,
+    `/users/api/organizations/${organizationId}/invitations/${invitationId}/revoke`,
     {
       method: 'POST',
     },
@@ -324,12 +324,12 @@ export async function revokeInvitation(
 
 export async function getInvitationByToken(token: string) {
   return apiRequestAnonymous<InvitationByToken>(
-    `/users/invitations/${encodeURIComponent(token)}`,
+    `/users/api/invitations/${encodeURIComponent(token)}`,
   );
 }
 
 export async function acceptInvitationByToken(token: string) {
-  return apiRequest(`/users/invitations/${encodeURIComponent(token)}/accept`, {
+  return apiRequest(`/users/api/invitations/${encodeURIComponent(token)}/accept`, {
     method: 'POST',
   });
 }
