@@ -1,142 +1,108 @@
-import { useEffect, useState } from 'react';
-import keycloak from './keycloak';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { AuthProvider } from './auth/AuthProvider'
+import { useAuth } from './auth/useAuth'
+import { DashboardPage } from './pages/DashboardPage'
+import { InvitationPage } from './pages/InvitationPage'
+import { OrganizationPage } from './pages/OrganizationPage'
+import { RegisterPage } from './pages/RegisterPage'
 
-type AuthState = 'loading' | 'authenticated' | 'unauthenticated';
-type ApiState = 'idle' | 'loading' | 'success' | 'error';
+function LoadingScreen() {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+      <h1 className="text-2xl font-semibold text-slate-900">Панель управления</h1>
+      <p className="mt-2 text-slate-600">Проверяем вход</p>
+    </div>
+  )
+}
 
-type MyProfile = {
-  id: string;
-  identityId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  patronymic: string | null;
-};
+function LoginScreen() {
+  const { login } = useAuth()
 
-function App() {
-  const [authState, setAuthState] = useState<AuthState>('loading');
-  const [username, setUsername] = useState<string>('');
-  const [apiState, setApiState] = useState<ApiState>('idle');
-  const [apiError, setApiError] = useState<string>('');
-  const [myProfile, setMyProfile] = useState<MyProfile | null>(null);
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+      <h1 className="text-2xl font-semibold text-slate-900">Панель управления</h1>
+      <p className="mt-2 text-slate-600">Войдите через Keycloak чтобы продолжить</p>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+        <button
+          onClick={() => {
+            void login(window.location.href)
+          }}
+          className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white"
+        >
+          Войти
+        </button>
+        <Link to="/register" className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">
+          Зарегистрироваться
+        </Link>
+      </div>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    let mounted = true;
+function AppLayout() {
+  const { status, username, logout } = useAuth()
+  const location = useLocation()
 
-    const fetchMyProfile = async () => {
-      setApiState('loading');
-      setApiError('');
-
-      try {
-        await keycloak.updateToken(30);
-
-        const response = await fetch('/api/users/me', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${keycloak.token}`,
-          },
-        });
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(
-            `HTTP ${response.status}: ${text || response.statusText}`,
-          );
-        }
-
-        const profile = (await response.json()) as MyProfile;
-        if (!mounted) {
-          return;
-        }
-
-        setMyProfile(profile);
-        setApiState('success');
-      } catch (error) {
-        console.error('API call /api/users/me failed:', error);
-        if (mounted) {
-          setApiState('error');
-          setApiError(error instanceof Error ? error.message : 'Unknown error');
-        }
-      }
-    };
-
-    const bootstrapAuth = async () => {
-      try {
-        const authenticated = await keycloak.init({
-          onLoad: 'check-sso',
-          pkceMethod: false,
-          checkLoginIframe: false,
-        });
-
-        if (!mounted) {
-          return;
-        }
-
-        if (authenticated) {
-          setUsername(keycloak.tokenParsed?.preferred_username ?? '');
-          setAuthState('authenticated');
-          await fetchMyProfile();
-          return;
-        }
-
-        setAuthState('unauthenticated');
-      } catch (error) {
-        console.error('Keycloak initialization failed:', error);
-        if (mounted) {
-          setAuthState('unauthenticated');
-        }
-      }
-    };
-
-    void bootstrapAuth();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const handleLogin = async () => {
-    await keycloak.login();
-  };
-
-  const handleLogout = async () => {
-    await keycloak.logout({ redirectUri: window.location.origin });
-  };
-
-  if (authState === 'loading') {
-    return (
-      <main>
-        <h1>Organization Bookings</h1>
-        <p>Checking authorization...</p>
-      </main>
-    );
+  if (status === 'loading') {
+    return <LoadingScreen />
   }
 
-  if (authState === 'unauthenticated') {
-    return (
-      <main>
-        <h1>Organization Bookings</h1>
-        <p>Sign in with Keycloak to continue.</p>
-        <button onClick={handleLogin}>Login with Keycloak</button>
-      </main>
-    );
+  const canOpenWithoutAuth = location.pathname.startsWith('/invite/') || location.pathname === '/register'
+
+  if (status === 'unauthenticated' && !canOpenWithoutAuth) {
+    return <LoginScreen />
   }
 
   return (
-    <main>
-      <h1>Organization Bookings</h1>
-      <p>You are logged in.</p>
-      <p>{username ? `User: ${username}` : 'User profile loaded.'}</p>
-      {apiState === 'loading' && <p>Calling /api/users/me...</p>}
-      {apiState === 'success' && myProfile && (
-        <p>
-          API OK: {myProfile.firstName} {myProfile.lastName} ({myProfile.email})
-        </p>
-      )}
-      {apiState === 'error' && <p>API error: {apiError}</p>}
-      <button onClick={handleLogout}>Logout</button>
-    </main>
-  );
+    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 md:p-8">
+      <header className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Кабинет организации</h1>
+            <p className="text-sm text-slate-600">Участники, роли и приглашения</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-600">{username ? `Пользователь: ${username}` : 'Гость'}</span>
+            {status === 'authenticated' && (
+              <button
+                type="button"
+                onClick={() => {
+                  void logout()
+                }}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              >
+                Выйти
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <Routes>
+          <Route path="/" element={status === 'authenticated' ? <DashboardPage /> : <LoginScreen />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/organizations/:organizationId"
+            element={status === 'authenticated' ? <OrganizationPage /> : <LoginScreen />}
+          />
+          <Route path="/invite/:token" element={<InvitationPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
+  )
 }
 
-export default App;
+function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppLayout />
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
+
+export default App
