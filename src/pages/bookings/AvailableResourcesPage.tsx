@@ -13,10 +13,9 @@ function resourceTypeLabel(type: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ru', {
-    day: '2-digit', month: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 function toLocalInput(date: Date) {
@@ -36,7 +35,7 @@ export function AvailableResourcesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const doSearch = async (fromDate: Date, toDate: Date) => {
+  const doSearch = async (fromStr: string, toStr: string) => {
     setLoading(true)
     setError('')
     setSuccess('')
@@ -44,11 +43,7 @@ export function AvailableResourcesPage() {
     setSelected(new Set())
     setExpandedId(null)
     try {
-      const data = await getResourcesSchedule(
-        organizationId,
-        fromDate.toISOString(),
-        toDate.toISOString(),
-      )
+      const data = await getResourcesSchedule(organizationId, fromStr, toStr)
       setSchedule(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось загрузить расписание')
@@ -60,16 +55,18 @@ export function AvailableResourcesPage() {
   const handleSearch = async () => {
     if (!from || !to) { setError('Укажите период'); return }
     if (new Date(from) >= new Date(to)) { setError('Начало должно быть раньше конца'); return }
-    await doSearch(new Date(from), new Date(to))
+    await doSearch(from + ':00', to + ':00')
   }
 
   const handleQuickSearch = async (days: number) => {
     const fromDate = new Date()
     const toDate = new Date()
     toDate.setDate(toDate.getDate() + days)
-    setFrom(toLocalInput(fromDate))
-    setTo(toLocalInput(toDate))
-    await doSearch(fromDate, toDate)
+    const fromLocal = toLocalInput(fromDate)
+    const toLocal = toLocalInput(toDate)
+    setFrom(fromLocal)
+    setTo(toLocal)
+    await doSearch(fromLocal + ':00', toLocal + ':00')
   }
 
   const toggleSelect = (id: string) => {
@@ -90,8 +87,8 @@ export function AvailableResourcesPage() {
       const result = await createBooking({
         organizationId,
         resourceIds: Array.from(selected),
-        startTime: new Date(from).toISOString(),
-        endTime: new Date(to).toISOString(),
+        startTime: from + ':00',
+        endTime: to + ':00',
       })
       const count = result.bookings.length
       setSuccess(`Забронировано ${count} ${count === 1 ? 'ресурс' : count < 5 ? 'ресурса' : 'ресурсов'}`)
@@ -178,7 +175,6 @@ export function AvailableResourcesPage() {
 
       {schedule !== null && (
         <>
-          {/* Свободные ресурсы */}
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-semibold text-slate-900">
@@ -238,7 +234,6 @@ export function AvailableResourcesPage() {
             </div>
           </section>
 
-          {/* Занятые ресурсы */}
           {busy.length > 0 && (
             <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="mb-4 font-semibold text-slate-900">

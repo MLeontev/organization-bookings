@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getMyOrganizations } from '../../api/orgMembershipApi'
-import { getBookings, cancelBooking, type BookingGroup } from '../../api/bookingApi'
+import { getMyBookings, cancelBooking, type BookingGroup } from '../../api/bookingApi'
 
 type OrgBookings = {
   organizationId: string
@@ -22,10 +22,9 @@ function getDisplayStatus(booking: BookingGroup): DisplayStatus {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ru', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 function sortBookings(bookings: BookingGroup[]): BookingGroup[] {
@@ -63,7 +62,7 @@ export function MyBookingsPage() {
   const [orgsLoading, setOrgsLoading] = useState(true)
   const [orgsError, setOrgsError] = useState('')
   const [orgBookings, setOrgBookings] = useState<OrgBookings[]>([])
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -88,7 +87,7 @@ export function MyBookingsPage() {
         await Promise.all(
           organizations.map(async (org) => {
             try {
-              const data = await getBookings(org.organizationId)
+              const data = await getMyBookings(org.organizationId)
               if (!mounted) return
               setOrgBookings(prev =>
                 prev.map(o =>
@@ -157,11 +156,8 @@ export function MyBookingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-            to={`/`}
-            className="text-sm font-medium text-sky-700 hover:underline"
-        >
-          ← Назад на главную страницу
+        <Link to="/" className="text-sm font-medium text-sky-700 hover:underline">
+          ← Назад на главную
         </Link>
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Все мои бронирования</h2>
