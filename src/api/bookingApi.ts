@@ -118,3 +118,14 @@ export async function getResourcesSchedule(
     `${BOOKING_BASE}/v1/resources/schedule?${query}`,
   );
 }
+
+export async function getMyBookings(
+  organizationId: string,
+  params?: { from?: string; to?: string; status?: 'Active' | 'Cancelled' },
+) {
+  const query = new URLSearchParams({ organizationId });
+  if (params?.from) query.set('from', params.from);
+  if (params?.to) query.set('to', params.to);
+  if (params?.status) query.set('status', params.status);
+  return apiRequest<BookingGroup[]>(`${BOOKING_BASE}/v1/Bookings/my?${query}`);
+}
