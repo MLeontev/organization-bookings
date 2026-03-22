@@ -7,8 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://vts-platform.ru',
         changeOrigin: true,
+        secure: true,
       },
     },
   },
