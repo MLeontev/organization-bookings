@@ -53,6 +53,8 @@ export function OrganizationPage() {
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
   const [loading, setLoading] = useState(true)
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [invitesLoading, setInvitesLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -83,6 +85,7 @@ export function OrganizationPage() {
   const [rolePriority, setRolePriority] = useState('500')
   const [rolePermissionCodes, setRolePermissionCodes] = useState<string[]>(['MEMBERS_LIST', 'MEMBERS_READ'])
   const [roleFormErrors, setRoleFormErrors] = useState<RoleFormErrors>({})
+  const [showRoleForm, setShowRoleForm] = useState(false)
 
   const [assignRoleCodes, setAssignRoleCodes] = useState<string[]>([])
   const [revokeRoleCode, setRevokeRoleCode] = useState('')
@@ -103,13 +106,64 @@ export function OrganizationPage() {
     setSuccess('')
   }
 
-  const loadData = async () => {
+  const loadMembers = async (permissionSet = permissions) => {
     if (!organizationId) {
       return
     }
 
-    setLoading(true)
-    setError('')
+    if (!permissionSet.includes('MEMBERS_LIST')) {
+      setMembers([])
+      setSelectedMemberId('')
+      setMemberDetails(null)
+      return
+    }
+
+    setMembersLoading(true)
+    try {
+      const result = await getOrganizationMembers(organizationId, membersStatus)
+      setMembers(result.members)
+
+      if (result.members.length === 0 || !result.members.some((member) => member.membershipId === selectedMemberId)) {
+        setSelectedMemberId('')
+        setMemberDetails(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить список участников')
+    } finally {
+      setMembersLoading(false)
+    }
+  }
+
+  const loadInvites = async (permissionSet = permissions) => {
+    if (!organizationId) {
+      return
+    }
+
+    if (!permissionSet.includes('MEMBERS_INVITE_LIST')) {
+      setInvitations([])
+      return
+    }
+
+    setInvitesLoading(true)
+    try {
+      const result = await getOrganizationInvitations(organizationId, invitesStatus)
+      setInvitations(result.invitations)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить приглашения')
+    } finally {
+      setInvitesLoading(false)
+    }
+  }
+
+  const loadData = async (preserveUi = false) => {
+    if (!organizationId) {
+      return null
+    }
+
+    if (!preserveUi) {
+      setLoading(true)
+      setError('')
+    }
 
     try {
       const [accessData, myProfile] = await Promise.all([
@@ -120,63 +174,56 @@ export function OrganizationPage() {
       setAccess(accessData)
       setMyIdentityId(myProfile.identityId)
 
-      const canListMembers = accessData.permissions.includes('MEMBERS_LIST')
       const canListRoles = accessData.permissions.includes('ROLES_LIST')
-      const canListInvites = accessData.permissions.includes('MEMBERS_INVITE_LIST')
-
-      const [membersResult, rolesResult, permissionCatalogResult, invitesResult] = await Promise.allSettled([
-        canListMembers ? getOrganizationMembers(organizationId, membersStatus) : Promise.resolve(null),
+      const [rolesResult, permissionCatalogResult] = await Promise.allSettled([
         canListRoles ? getOrganizationRoles(organizationId, true) : Promise.resolve(null),
         canListRoles ? getPermissionsCatalog(organizationId) : Promise.resolve(null),
-        canListInvites ? getOrganizationInvitations(organizationId, invitesStatus) : Promise.resolve(null),
       ])
 
-      setMembers(membersResult.status === 'fulfilled' && membersResult.value ? membersResult.value.members : [])
       setRoles(rolesResult.status === 'fulfilled' && rolesResult.value ? rolesResult.value.roles : [])
       setPermissionCatalog(
         permissionCatalogResult.status === 'fulfilled' && permissionCatalogResult.value
           ? permissionCatalogResult.value.permissions
           : [],
       )
-      setInvitations(
-        invitesResult.status === 'fulfilled' && invitesResult.value ? invitesResult.value.invitations : [],
-      )
 
       const errors: string[] = []
-      if (membersResult.status === 'rejected' && membersResult.reason instanceof Error) {
-        errors.push(`Участники: ${membersResult.reason.message}`)
-      }
       if (rolesResult.status === 'rejected' && rolesResult.reason instanceof Error) {
         errors.push(`Роли: ${rolesResult.reason.message}`)
       }
       if (permissionCatalogResult.status === 'rejected' && permissionCatalogResult.reason instanceof Error) {
         errors.push(`Права: ${permissionCatalogResult.reason.message}`)
       }
-      if (invitesResult.status === 'rejected' && invitesResult.reason instanceof Error) {
-        errors.push(`Приглашения: ${invitesResult.reason.message}`)
-      }
 
       if (errors.length > 0) {
         setError(errors.join('\n'))
       }
 
-      const safeMembers =
-        membersResult.status === 'fulfilled' && membersResult.value ? membersResult.value.members : []
-      if (safeMembers.length === 0 || !safeMembers.some((member) => member.membershipId === selectedMemberId)) {
-        setSelectedMemberId('')
-        setMemberDetails(null)
-      }
+      return accessData
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось загрузить данные организации')
+      return null
     } finally {
-      setLoading(false)
+      if (!preserveUi) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
     void loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, membersStatus, invitesStatus])
+  }, [organizationId])
+
+  useEffect(() => {
+    void loadMembers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, membersStatus, permissions])
+
+  useEffect(() => {
+    void loadInvites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, invitesStatus, permissions])
 
   useEffect(() => {
     if (!selectedMember) {
@@ -245,7 +292,12 @@ export function OrganizationPage() {
     try {
       await action()
       setSuccess(successMessage)
-      await loadData()
+      const accessData = await loadData(true)
+      const nextPermissions = accessData?.permissions ?? permissions
+      await Promise.all([
+        loadMembers(nextPermissions),
+        loadInvites(nextPermissions),
+      ])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка выполнения действия')
     } finally {
@@ -335,6 +387,7 @@ export function OrganizationPage() {
   }
 
   const handleStartEditRole = (role: OrganizationRole) => {
+    setShowRoleForm(true)
     setRoleIdForEdit(role.roleId)
     setRoleCode(role.roleCode)
     setRoleName(role.name)
@@ -407,10 +460,28 @@ export function OrganizationPage() {
   }
 
   const handleCreateInvitation = () => {
+    clearMessages()
+
+    if (!inviteExpiresAt.trim()) {
+      setError('Укажите срок действия приглашения')
+      return
+    }
+
+    const inviteExpiresDate = new Date(inviteExpiresAt)
+    if (Number.isNaN(inviteExpiresDate.getTime())) {
+      setError('Укажите корректную дату срока действия приглашения')
+      return
+    }
+
+    if (inviteExpiresDate.getTime() <= Date.now()) {
+      setError('Срок действия приглашения должен быть в будущем')
+      return
+    }
+
     void runAction(async () => {
       const result = await createInvitation(organizationId, {
         roleCodes: inviteRoleCodes,
-        expiresAt: new Date(inviteExpiresAt).toISOString(),
+        expiresAt: inviteExpiresDate.toISOString(),
       })
       setCreatedInviteLink(`${window.location.origin}/invite/${result.invitationToken}`)
     }, 'Приглашение создано')
@@ -441,32 +512,42 @@ export function OrganizationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="space-y-1">
         <h2 className="text-xl font-semibold text-slate-900">Управление организацией</h2>
-        <Link className="text-sm font-medium text-sky-700 hover:underline" to="/">
-          К списку организаций
+        <Link className="inline-block text-sm font-medium text-sky-700 hover:underline" to={`/`}>
+          ← Назад на главную
         </Link>
       </div>
 
-      {error && <Alert tone="error">{error}</Alert>}
-      {success && <Alert tone="success">{success}</Alert>}
+      {error && (
+        <Alert tone="error" onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert tone="success" onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
       {loading && <p className="text-slate-600">Загружаем данные</p>}
 
       {!loading && (
         <RbacProvider permissions={permissions} roles={access?.roles ?? []}>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Обзор</TabButton>
             <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')}>Роли</TabButton>
             <TabButton active={activeTab === 'members'} onClick={() => setActiveTab('members')}>Участники</TabButton>
             <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')}>Приглашения</TabButton>
           </div>
 
-          {activeTab === 'overview' && <OverviewTab access={access} />}
+          {activeTab === 'overview' && <OverviewTab access={access} organizationRoles={roles} />}
 
           {activeTab === 'roles' && (
             <RolesTab
               busy={busy}
               permissions={permissions}
+              showRoleForm={showRoleForm}
+              onToggleRoleForm={() => setShowRoleForm((prev) => !prev)}
               roleIdForEdit={roleIdForEdit}
               roleCode={roleCode}
               roleName={roleName}
@@ -505,6 +586,7 @@ export function OrganizationPage() {
               memberDepartment={memberDepartment}
               memberTitle={memberTitle}
               busy={busy}
+              loading={membersLoading}
               onToggleSelectMember={handleToggleSelectedMember}
               onToggleAssignRole={(roleCode) => setAssignRoleCodes((prev) => toggleCodeInList(prev, roleCode))}
               onAssignRoles={handleAssignMemberRoles}
@@ -531,6 +613,7 @@ export function OrganizationPage() {
               inviteExpiresAt={inviteExpiresAt}
               onInviteExpiresAtChange={setInviteExpiresAt}
               busy={busy}
+              loading={invitesLoading}
               onCreateInvitation={handleCreateInvitation}
               createdInviteLink={createdInviteLink}
               onCopyInviteLink={() => {

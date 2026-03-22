@@ -4,6 +4,7 @@ import { Alert } from '../components/Alert'
 import { acceptInvitationByToken, getInvitationByToken, type InvitationByToken } from '../api/orgMembershipApi'
 import { useAuth } from '../auth/useAuth'
 import { formatInvitationStatus } from '../utils/statuses'
+import { formatRoleLabel } from '../utils/roles'
 
 export function InvitationPage() {
   const { token = '' } = useParams()
@@ -84,7 +85,9 @@ export function InvitationPage() {
             <span className="font-medium">Срок действия:</span> {new Date(invitation.expiresAt).toLocaleString()}
           </p>
           <p>
-            <span className="font-medium">Роли:</span> {invitation.roleCodes.join(', ') || 'Нет'}
+            <span className="font-medium">Роли:</span> {invitation.roleCodes.length > 0
+              ? invitation.roleCodes.map((roleCode) => formatRoleLabel(roleCode)).join(', ')
+              : 'Нет'}
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
