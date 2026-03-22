@@ -5,6 +5,9 @@ import { DashboardPage } from './pages/DashboardPage'
 import { InvitationPage } from './pages/InvitationPage'
 import { OrganizationPage } from './pages/OrganizationPage'
 import { RegisterPage } from './pages/RegisterPage'
+import {BookingsPage} from "./pages/bookings/BookingsPage.tsx";
+import {AvailableResourcesPage} from "./pages/bookings/AvailableResourcesPage.tsx";
+import {MyBookingsPage} from "./pages/bookings/MyBookingsPage.tsx";
 
 function LoadingScreen() {
   return (
@@ -65,15 +68,23 @@ function AppLayout() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">{username ? `Пользователь: ${username}` : 'Гость'}</span>
             {status === 'authenticated' && (
-              <button
-                type="button"
-                onClick={() => {
-                  void logout()
-                }}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
-              >
-                Выйти
-              </button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Link
+                        to="/bookings"
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    >
+                        Мои бронирования
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            void logout()
+                        }}
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    >
+                        Выйти
+                    </button>
+                </div>
             )}
           </div>
         </div>
@@ -87,6 +98,15 @@ function AppLayout() {
             path="/organizations/:organizationId"
             element={status === 'authenticated' ? <OrganizationPage /> : <LoginScreen />}
           />
+          <Route
+            path="/organizations/:organizationId/bookings"
+            element={status === 'authenticated' ? <BookingsPage /> : <LoginScreen />}
+          />
+          <Route
+              path="organizations/:organizationId/bookings/new"
+              element={status === 'authenticated' ? <AvailableResourcesPage /> : <LoginScreen />}
+          />
+          <Route path="/bookings" element={status === 'authenticated' ? <MyBookingsPage /> : <LoginScreen />} />
           <Route path="/invite/:token" element={<InvitationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

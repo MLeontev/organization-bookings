@@ -88,14 +88,29 @@ export function DashboardPage() {
         {!loading && !error && organizations.length > 0 && (
           <div className="grid gap-3 md:grid-cols-2">
             {organizations.map((organization, index) => (
-              <Link
-                key={organization.membershipId}
-                to={`/organizations/${organization.organizationId}`}
-                className="block rounded-lg border border-slate-200 p-4 transition hover:border-sky-400 hover:bg-sky-50"
-              >
-                <p className="font-semibold text-slate-900">Организация {index + 1}</p>
-                <p className="mt-1 text-sm text-slate-600">Статус членства: {formatMembershipStatus(organization.status)}</p>
-              </Link>
+                <div
+                    key={organization.membershipId}
+                    className="rounded-lg border border-slate-200 p-4 transition hover:border-sky-400 hover:bg-sky-50"
+                >
+                  <p className="font-semibold text-slate-900">Организация {index + 1}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Статус членства: {formatMembershipStatus(organization.status)}
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <Link
+                        to={`/organizations/${organization.organizationId}`}
+                        className="text-sm text-sky-600 hover:underline"
+                    >
+                      Управление
+                    </Link>
+                    <Link
+                        to={`/organizations/${organization.organizationId}/bookings`}
+                        className="text-sm text-sky-600 hover:underline"
+                    >
+                      Бронирования
+                    </Link>
+                  </div>
+                </div>
             ))}
           </div>
         )}
