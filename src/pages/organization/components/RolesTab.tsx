@@ -8,6 +8,8 @@ type OrganizationRole = OrganizationRolesResponse['roles'][number]
 export function RolesTab({
   busy,
   permissions,
+  showRoleForm,
+  onToggleRoleForm,
   roleIdForEdit,
   roleCode,
   roleName,
@@ -30,6 +32,8 @@ export function RolesTab({
 }: {
   busy: boolean
   permissions: string[]
+  showRoleForm: boolean
+  onToggleRoleForm: () => void
   roleIdForEdit: string
   roleCode: string
   roleName: string
@@ -59,98 +63,114 @@ export function RolesTab({
       <h3 className="text-lg font-semibold text-slate-900">Роли</h3>
 
       <Can anyOf={['ROLES_CREATE', 'ROLES_UPDATE']}>
-        <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-          <div className="grid gap-2 md:grid-cols-5">
-            <input
-              className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.code ? 'border-rose-400' : 'border-slate-300'}`}
-              placeholder="Код"
-              value={roleCode}
-              onChange={(e) => {
-                onRoleCodeChange(e.target.value)
-                onClearRoleError('code')
-              }}
-            />
-            <input
-              className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.name ? 'border-rose-400' : 'border-slate-300'}`}
-              placeholder="Название"
-              value={roleName}
-              onChange={(e) => {
-                onRoleNameChange(e.target.value)
-                onClearRoleError('name')
-              }}
-            />
-            <input
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Описание"
-              value={roleDescription}
-              onChange={(e) => onRoleDescriptionChange(e.target.value)}
-            />
-            <input
-              className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.priority ? 'border-rose-400' : 'border-slate-300'}`}
-              placeholder="Приоритет"
-              type="number"
-              value={rolePriority}
-              onChange={(e) => {
-                onRolePriorityChange(e.target.value)
-                onClearRoleError('priority')
-              }}
-              disabled={!!roleIdForEdit}
-            />
-            <button
-              type="button"
-              disabled={busy || (!roleIdForEdit && !canCreateRole) || (!!roleIdForEdit && !canUpdateRole)}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              onClick={onSubmitRole}
-            >
-              {roleIdForEdit ? 'Сохранить' : 'Создать'}
-            </button>
-          </div>
+        <div className="space-y-3">
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+            onClick={onToggleRoleForm}
+          >
+            {showRoleForm ? 'Скрыть форму' : 'Создать роль'}
+          </button>
 
-          {(roleFormErrors.code || roleFormErrors.name || roleFormErrors.priority || roleFormErrors.permissions) && (
-            <Alert tone="error">
-              {[
-                roleFormErrors.code,
-                roleFormErrors.name,
-                roleFormErrors.priority,
-                roleFormErrors.permissions,
-              ]
-                .filter(Boolean)
-                .join('\n')}
-            </Alert>
-          )}
-
-          <div className={`space-y-2 rounded-md border p-3 ${roleFormErrors.permissions ? 'border-rose-400' : 'border-slate-200'}`}>
-            <p className="text-sm font-medium text-slate-800">Права роли</p>
-            {permissionCatalog.length === 0 && (
-              <p className="text-sm text-slate-500">Каталог прав недоступен</p>
-            )}
-            {permissionCatalog.length > 0 && (
-              <div className="grid gap-2 md:grid-cols-2">
-                {permissionCatalog.map((permission) => (
-                  <label key={permission.code} className="flex items-start gap-2 rounded-md border border-slate-200 p-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={rolePermissionCodes.includes(permission.code)}
-                      onChange={() => {
-                        onToggleRolePermission(permission.code)
-                        onClearRoleError('permissions')
-                      }}
-                    />
-                    <span>
-                      <span className="block font-medium text-slate-800">{permission.name}</span>
-                      <span className="block text-xs text-slate-500">{permission.code}</span>
-                    </span>
-                  </label>
-                ))}
+          {showRoleForm && (
+            <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+              <div className="grid gap-2 md:grid-cols-5">
+                <input
+                  className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.code ? 'border-rose-400' : 'border-slate-300'}`}
+                  placeholder="Код"
+                  value={roleCode}
+                  onChange={(e) => {
+                    onRoleCodeChange(e.target.value)
+                    onClearRoleError('code')
+                  }}
+                />
+                <input
+                  className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.name ? 'border-rose-400' : 'border-slate-300'}`}
+                  placeholder="Название"
+                  value={roleName}
+                  onChange={(e) => {
+                    onRoleNameChange(e.target.value)
+                    onClearRoleError('name')
+                  }}
+                />
+                <input
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="Описание"
+                  value={roleDescription}
+                  onChange={(e) => onRoleDescriptionChange(e.target.value)}
+                />
+                <input
+                  className={`rounded-md border px-3 py-2 text-sm ${roleFormErrors.priority ? 'border-rose-400' : 'border-slate-300'}`}
+                  placeholder="Приоритет"
+                  type="number"
+                  value={rolePriority}
+                  onChange={(e) => {
+                    onRolePriorityChange(e.target.value)
+                    onClearRoleError('priority')
+                  }}
+                  disabled={!!roleIdForEdit}
+                />
+                <button
+                  type="button"
+                  disabled={busy || (!roleIdForEdit && !canCreateRole) || (!!roleIdForEdit && !canUpdateRole)}
+                  className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={onSubmitRole}
+                >
+                  {roleIdForEdit ? 'Сохранить' : 'Создать'}
+                </button>
               </div>
-            )}
-          </div>
 
-          {roleIdForEdit && (
-            <button type="button" className="text-sm text-sky-700 hover:underline" onClick={onResetRoleForm}>
-              Отменить редактирование
-            </button>
+              {(roleFormErrors.code || roleFormErrors.name || roleFormErrors.priority || roleFormErrors.permissions) && (
+                <Alert tone="error">
+                  {[
+                    roleFormErrors.code,
+                    roleFormErrors.name,
+                    roleFormErrors.priority,
+                    roleFormErrors.permissions,
+                  ]
+                    .filter(Boolean)
+                    .join('\n')}
+                </Alert>
+              )}
+
+              <div className={`space-y-2 rounded-md border p-3 ${roleFormErrors.permissions ? 'border-rose-400' : 'border-slate-200'}`}>
+                <p className="text-sm font-medium text-slate-800">Права роли</p>
+                {permissionCatalog.length === 0 && (
+                  <p className="text-sm text-slate-500">Каталог прав недоступен</p>
+                )}
+                {permissionCatalog.length > 0 && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {permissionCatalog.map((permission) => (
+                      <label key={permission.code} className="flex items-start gap-2 rounded-md border border-slate-200 p-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={rolePermissionCodes.includes(permission.code)}
+                          onChange={() => {
+                            onToggleRolePermission(permission.code)
+                            onClearRoleError('permissions')
+                          }}
+                        />
+                        <span>
+                          <span className="block font-medium text-slate-800">{permission.name}</span>
+                          <span className="block text-xs text-slate-500">{permission.code}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {roleIdForEdit && (
+                <button
+                  type="button"
+                  className="rounded-md border border-slate-300 px-3 py-1 text-sm text-slate-700 transition hover:bg-slate-50"
+                  onClick={onResetRoleForm}
+                >
+                  Отменить редактирование
+                </button>
+              )}
+            </div>
           )}
         </div>
       </Can>
@@ -165,7 +185,7 @@ export function RolesTab({
                 <th className="py-2 pr-4">Тип</th>
                 <th className="py-2 pr-4">Приоритет</th>
                 <th className="py-2 pr-4">Права</th>
-                <th className="py-2">Действия</th>
+                <th className="py-2" />
               </tr>
             </thead>
             <tbody>
@@ -182,7 +202,7 @@ export function RolesTab({
                         <button
                           type="button"
                           disabled={busy}
-                          className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                          className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => onStartEditRole(role)}
                         >
                           Редактировать
@@ -192,7 +212,7 @@ export function RolesTab({
                         <button
                           type="button"
                           disabled={busy}
-                          className="rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700"
+                          className="rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => onDeleteRole(role.roleId)}
                         >
                           Удалить

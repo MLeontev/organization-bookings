@@ -5,7 +5,7 @@ import {
 } from '../../../api/orgMembershipApi'
 import { Can } from '../../../rbac/Can'
 import { Alert } from '../../../components/Alert'
-import { formatMembershipStatus } from '../../../utils/statuses'
+import { formatRoleLabel } from '../../../utils/roles'
 
 export function MembersTab({
   membersStatus,
@@ -22,6 +22,7 @@ export function MembersTab({
   memberDepartment,
   memberTitle,
   busy,
+  loading,
   onToggleSelectMember,
   onToggleAssignRole,
   onAssignRoles,
@@ -48,6 +49,7 @@ export function MembersTab({
   memberDepartment: string
   memberTitle: string
   busy: boolean
+  loading: boolean
   onToggleSelectMember: (membershipId: string) => void
   onToggleAssignRole: (roleCode: string) => void
   onAssignRoles: (membershipId: string) => void
@@ -60,29 +62,43 @@ export function MembersTab({
   onActivate: (membershipId: string) => void
   onRemove: (membershipId: string) => void
 }) {
+  const memberStatusOptions: Array<{ value: string; label: string }> = [
+    { value: 'Active', label: 'Активные' },
+    { value: 'Deactivated', label: 'Деактивированные' },
+    { value: 'Removed', label: 'Удалённые' },
+  ]
+  const toRoleLabel = (roleCode: string) => formatRoleLabel(roleCode, roles)
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold text-slate-900">Участники</h3>
-        <select
-          value={membersStatus}
-          onChange={(event) => onMembersStatusChange(event.target.value)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-        >
-          <option value="Active">Активные</option>
-          <option value="Deactivated">Деактивированные</option>
-          <option value="Removed">Удалённые</option>
-        </select>
+        <div className="flex flex-wrap gap-2">
+          {memberStatusOptions.map((status) => (
+            <button
+              key={status.value}
+              type="button"
+              onClick={() => onMembersStatusChange(status.value)}
+              className={`rounded-full px-3 py-1 text-sm transition ${
+                membersStatus === status.value
+                  ? 'bg-sky-600 text-white'
+                  : 'border border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {status.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Can permission="MEMBERS_LIST" fallback={<Alert tone="info">Нет доступа к списку участников</Alert>}>
+        {loading && <p className="text-sm text-slate-500">Загружаем участников...</p>}
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-2 pr-4">ФИО</th>
                 <th className="py-2 pr-4">Email</th>
-                <th className="py-2 pr-4">Статус</th>
                 <th className="py-2 pr-4">Роли</th>
                 <th className="py-2">Подробнее</th>
               </tr>
@@ -96,15 +112,16 @@ export function MembersTab({
                   <tr key={member.membershipId} className="border-b border-slate-100 align-top">
                     <td className="py-2 pr-4">{member.firstName} {member.lastName}</td>
                     <td className="py-2 pr-4">{member.email}</td>
-                    <td className="py-2 pr-4">{formatMembershipStatus(member.status)}</td>
-                    <td className="py-2 pr-4 text-xs text-slate-600">{member.roles.join(', ') || 'Нет'}</td>
+                    <td className="py-2 pr-4 text-xs text-slate-600">
+                      {member.roles.length > 0 ? member.roles.map(toRoleLabel).join(', ') : 'Нет'}
+                    </td>
                     <td className="py-2">
                       <button
                         type="button"
                         className={
                           isSelected
-                            ? 'rounded-md bg-sky-600 px-3 py-1 text-xs text-white'
-                            : 'rounded-md border border-slate-300 px-3 py-1 text-xs'
+                            ? 'rounded-md bg-sky-600 px-3 py-1 text-xs text-white transition'
+                            : 'rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700 transition hover:border-slate-400'
                         }
                         onClick={() => onToggleSelectMember(member.membershipId)}
                       >
@@ -114,7 +131,7 @@ export function MembersTab({
                   </tr>,
                   isSelected ? (
                     <tr key={`${member.membershipId}-details`} className="border-b border-slate-100">
-                      <td colSpan={5} className="py-3">
+                      <td colSpan={4} className="py-3">
                         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
                           {accessPermissions.includes('MEMBERS_READ') && memberDetailsLoading && (
                             <p className="text-sm text-slate-500">Загружаем карточку участника</p>
@@ -122,92 +139,97 @@ export function MembersTab({
 
                           {accessPermissions.includes('MEMBERS_READ') && memberDetails && (
                             <div className="rounded-md bg-slate-50 p-3 text-sm text-slate-700">
-                              <p className="mb-1 font-medium text-slate-800">Подробные данные участника</p>
+                              <p className="mb-1 font-medium text-slate-800">Подробные данные</p>
                               <p>Отдел: {memberDetails.department || 'Не указан'}</p>
                               <p>Должность: {memberDetails.title || 'Не указана'}</p>
                               <p>Дата вступления: {memberDetails.joinedAt ? new Date(memberDetails.joinedAt).toLocaleString() : '—'}</p>
                             </div>
                           )}
 
-                          <Can permission="ROLES_ASSIGN">
-                            <div className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
-                              <p className="text-sm font-medium text-slate-800">Назначить роли</p>
-                              <div className="grid gap-2 md:grid-cols-2">
-                                {roles.map((role) => (
-                                  <label key={role.roleId} className="flex items-start gap-2 rounded-md border border-slate-200 p-2 text-sm">
-                                    <input
-                                      type="checkbox"
-                                      className="mt-0.5"
-                                      checked={assignRoleCodes.includes(role.roleCode)}
-                                      onChange={() => onToggleAssignRole(role.roleCode)}
-                                    />
-                                    <span>
-                                      <span className="block font-medium text-slate-800">{role.name}</span>
-                                      <span className="block text-xs text-slate-500">{role.roleCode}</span>
-                                    </span>
-                                  </label>
-                                ))}
+                          {!isSelfMember && (
+                            <Can permission="ROLES_ASSIGN">
+                              <div className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
+                                <p className="text-sm font-medium text-slate-800">Назначить роли</p>
+                                <div className="grid gap-2 md:grid-cols-2">
+                                  {roles.map((role) => (
+                                    <label key={role.roleId} className="flex items-start gap-2 rounded-md border border-slate-200 p-2 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        className="mt-0.5"
+                                        checked={assignRoleCodes.includes(role.roleCode)}
+                                        onChange={() => onToggleAssignRole(role.roleCode)}
+                                      />
+                                      <span>
+                                        <span className="block font-medium text-slate-800">{role.name}</span>
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={busy || assignRoleCodes.length === 0}
+                                  className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => onAssignRoles(member.membershipId)}
+                                >
+                                  Назначить роли
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                disabled={busy || assignRoleCodes.length === 0}
-                                className="rounded-md border border-slate-300 px-4 py-2 text-sm"
-                                onClick={() => onAssignRoles(member.membershipId)}
-                              >
-                                Назначить роли
-                              </button>
-                            </div>
-                          </Can>
+                            </Can>
+                          )}
 
-                          <Can permission="ROLES_REVOKE">
-                            <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                              <select
-                                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                                value={revokeRoleCode}
-                                onChange={(e) => onRevokeRoleCodeChange(e.target.value)}
-                              >
-                                <option value="">Выберите роль для снятия</option>
-                                {member.roles.map((roleCode) => (
-                                  <option key={roleCode} value={roleCode}>
-                                    {roleCode}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                disabled={busy || !revokeRoleCode.trim()}
-                                className="rounded-md border border-slate-300 px-4 py-2 text-sm"
-                                onClick={() => onRevokeRole(member.membershipId)}
-                              >
-                                Снять роль
-                              </button>
-                            </div>
-                          </Can>
+                          {!isSelfMember && (
+                            <Can permission="ROLES_REVOKE">
+                              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                                <select
+                                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                  value={revokeRoleCode}
+                                  onChange={(e) => onRevokeRoleCodeChange(e.target.value)}
+                                >
+                                  <option value="">Выберите роль для снятия</option>
+                                  {member.roles.map((roleCode) => (
+                                    <option key={roleCode} value={roleCode}>
+                                      {toRoleLabel(roleCode)}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  disabled={busy || !revokeRoleCode.trim()}
+                                  className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => onRevokeRole(member.membershipId)}
+                                >
+                                  Снять роль
+                                </button>
+                              </div>
+                            </Can>
+                          )}
 
-                          <Can permission="MEMBERS_UPDATE">
-                            <div className="grid gap-2 md:grid-cols-3">
-                              <input
-                                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                                placeholder="Отдел"
-                                value={memberDepartment}
-                                onChange={(e) => onMemberDepartmentChange(e.target.value)}
-                              />
-                              <input
-                                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
-                                placeholder="Должность"
-                                value={memberTitle}
-                                onChange={(e) => onMemberTitleChange(e.target.value)}
-                              />
-                              <button
-                                type="button"
-                                disabled={busy}
-                                className="rounded-md border border-slate-300 px-4 py-2 text-sm"
-                                onClick={() => onSaveProfile(member.membershipId)}
-                              >
-                                Сохранить профиль
-                              </button>
-                            </div>
-                          </Can>
+                          {!isSelfMember && (
+                            <Can permission="MEMBERS_UPDATE">
+                              <div className="grid gap-2 md:grid-cols-3">
+                                <input
+                                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                  placeholder="Отдел"
+                                  value={memberDepartment}
+                                  onChange={(e) => onMemberDepartmentChange(e.target.value)}
+                                />
+                                <input
+                                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                  placeholder="Должность"
+                                  value={memberTitle}
+                                  onChange={(e) => onMemberTitleChange(e.target.value)}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  className="rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => onSaveProfile(member.membershipId)}
+                                >
+                                  Сохранить профиль
+                                </button>
+                              </div>
+                            </Can>
+                          )}
 
                           {!isSelfMember && (
                             <div className="flex flex-wrap gap-2">
@@ -215,7 +237,7 @@ export function MembersTab({
                                 <button
                                   type="button"
                                   disabled={busy}
-                                  className="rounded-md border border-amber-300 px-3 py-2 text-sm text-amber-700"
+                                  className="rounded-md border border-amber-300 px-3 py-2 text-sm text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
                                   onClick={() => onDeactivate(member.membershipId)}
                                 >
                                   Деактивировать
@@ -226,7 +248,7 @@ export function MembersTab({
                                 <button
                                   type="button"
                                   disabled={busy}
-                                  className="rounded-md border border-emerald-300 px-3 py-2 text-sm text-emerald-700"
+                                  className="rounded-md border border-emerald-300 px-3 py-2 text-sm text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
                                   onClick={() => onActivate(member.membershipId)}
                                 >
                                   Активировать
@@ -237,19 +259,13 @@ export function MembersTab({
                                 <button
                                   type="button"
                                   disabled={busy}
-                                  className="rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700"
+                                  className="rounded-md border border-rose-300 px-3 py-2 text-sm text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                                   onClick={() => onRemove(member.membershipId)}
                                 >
                                   Удалить из организации
                                 </button>
                               </Can>
                             </div>
-                          )}
-
-                          {isSelfMember && (
-                            <Alert tone="info">
-                              Для вашего аккаунта скрыты действия активации, деактивации и удаления
-                            </Alert>
                           )}
                         </div>
                       </td>
