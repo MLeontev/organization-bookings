@@ -108,6 +108,20 @@ export type CreateInvitationResponse = {
   expiresAt: string;
 };
 
+export type UserProfileByIdentity = {
+  id: string
+  identityId: string
+  email: string
+  firstName: string
+  lastName: string
+}
+
+export async function getUserByIdentityId(identityId: string) {
+  return apiRequest<UserProfileByIdentity>(
+      `/users/api/internal/users/by-identity/${identityId}`
+  )
+}
+
 export async function registerUser(payload: RegisterUserPayload) {
   return apiRequestAnonymous<RegisterUserResponse>('/users/api/users/register', {
     method: 'POST',

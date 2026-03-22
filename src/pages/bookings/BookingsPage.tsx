@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getBookings, cancelBooking, type BookingGroup } from '../../api/bookingApi'
-import {getMyAccess, getMyProfile} from '../../api/orgMembershipApi'
+import {getMyAccess, getMyProfile, getUserByIdentityId, type UserProfileByIdentity} from '../../api/orgMembershipApi'
 
 type DisplayStatus = 'active' | 'expired' | 'cancelled'
 type StatusFilter = 'all' | DisplayStatus
@@ -53,6 +53,7 @@ export function BookingsPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [canManageAny, setCanManageAny] = useState(false)
   const [myIdentityId, setMyIdentityId] = useState('')
+  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileByIdentity>>({})
 
   useEffect(() => {
     let mounted = true
@@ -69,6 +70,16 @@ export function BookingsPage() {
           setBookings(data)
           setCanManageAny(access.permissions.includes('BOOKINGS_MANAGE_ANY'))
           setMyIdentityId(profile.identityId)
+
+          const uniqueIds = [...new Set(data.map(b => b.identityId))]
+          const results = await Promise.allSettled(uniqueIds.map(id => getUserByIdentityId(id)))
+          const profileMap: Record<string, UserProfileByIdentity> = {}
+          results.forEach((result, i) => {
+            if (result.status === 'fulfilled') {
+              profileMap[uniqueIds[i]] = result.value
+            }
+          })
+          if (mounted) setUserProfiles(profileMap)
         }
       } catch (err) {
         if (mounted) setError(err instanceof Error ? err.message : 'Не удалось загрузить бронирования')
@@ -176,11 +187,19 @@ export function BookingsPage() {
                             booking.bookings.length < 5 ? 'ресурса' : 'ресурсов'
                           }
                         </span>
-                        {canManageAny && !isOwn && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-600">
-                            Чужая
-                          </span>
-                        )}
+                        { isOwn
+                            ? <p className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-950">
+                              {userProfiles[booking.identityId]
+                                  ? `${userProfiles[booking.identityId].firstName} ${userProfiles[booking.identityId].lastName} · ${userProfiles[booking.identityId].email}`
+                                  : booking.identityId}
+                            </p>
+                            : <p className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-950">
+                              {userProfiles[booking.identityId]
+                                  ? `${userProfiles[booking.identityId].firstName} ${userProfiles[booking.identityId].lastName} · ${userProfiles[booking.identityId].email}`
+                                  : booking.identityId}
+                            </p>
+                        }
+
                       </div>
                       <div className="text-sm text-slate-700">
                         <span className="font-medium">{formatDate(booking.startTime)}</span>
