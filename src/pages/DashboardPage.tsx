@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
-import type { Organization } from '../api/organizationsApi';
-import { getAllOrganizations, getDeactivatedOrganizations } from '../api/organizationsApi';
+import { getMyProfile, type UserProfile } from '../api/orgMembershipApi'
+import { getAllOrganizations, getDeactivatedOrganizations, type Organization } from '../api/organizationsApi';
 import keycloak from '../keycloak';
 
 export function DashboardPage() {
@@ -12,6 +12,9 @@ export function DashboardPage() {
     { value: 'archived', label: 'Деактивированные' },
   ];
 
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [profileError, setProfileError] = useState('')
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [token, setToken] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,6 +27,38 @@ export function DashboardPage() {
       setToken(keycloak.token);
     }
   }, [keycloak.token]);
+
+    useEffect(() => {
+    let mounted = true
+
+    const loadProfile = async () => {
+      setProfileLoading(true)
+      setProfileError('')
+      try {
+        const myProfile = await getMyProfile()
+
+        if (!mounted) {
+          return
+        }
+
+        setProfile(myProfile)
+      } catch (err) {
+        if (mounted) {
+          setProfileError(err instanceof Error ? err.message : 'Не удалось загрузить профиль')
+        }
+      } finally {
+        if (mounted) {
+          setProfileLoading(false)
+        }
+      }
+    }
+
+    void loadProfile()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   // Загружаем организации при смене фильтра или когда есть токен
   useEffect(() => {
@@ -60,6 +95,28 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold text-slate-900">Мой профиль</h2>
+        {profileError && (
+          <div className="mt-3">
+            <Alert tone="error" onClose={() => setProfileError('')}>
+              {profileError}
+            </Alert>
+          </div>
+        )}
+        {profileLoading && <p className="mt-3 text-slate-600">Загружаем данные</p>}
+        {!profileLoading && profile && (
+          <div className="mt-3 space-y-1 text-sm text-slate-700">
+            <p>
+              <span className="font-medium">Имя:</span> {profile.firstName} {profile.lastName}
+            </p>
+            <p>
+              <span className="font-medium">Email:</span> {profile.email}
+            </p>
+          </div>
+        )}
+      </section>
+      
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold text-slate-900">Мои организации</h2>
         <div className="flex flex-wrap gap-2 mt-3">
