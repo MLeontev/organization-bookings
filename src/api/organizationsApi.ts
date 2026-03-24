@@ -22,10 +22,6 @@ export type BookingPolicy = {
   updated_at: string;
 };
 
-type AxiosConfig = {
-  headers?: Record<string, string>;
-};
-
 export const apiRequest = axios.create({
   baseURL: API_BASE,
 });
