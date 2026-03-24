@@ -117,6 +117,18 @@ useEffect(() => {
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
             />
           </div>
+
+          {/* Проверка доступа на редактирование */}
+          <Can permission="POLICIES_MANAGE">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleSave}
+              className="rounded-md bg-sky-600 px-4 py-2 text-white text-sm font-medium hover:bg-sky-700 transition disabled:opacity-50"
+            >
+              {saving ? 'Сохраняем...' : 'Сохранить'}
+            </button>
+          </Can>
         </div>
       </Can>
     </section>
