@@ -81,10 +81,29 @@ export async function changeOrganizationOwner(
 
 // --- Политики бронирования ---
 
+type RawBookingPolicy = {
+  ID: number;
+  OrganizationID: string;
+  MaxBookingDurationMin: number;
+  BookingWindowDays: number;
+  MaxActiveBookingsPerUser: number;
+  CreatedAt: string;
+  UpdatedAt: string;
+}
+
 export async function getBookingPolicy(token: string, orgId: string) {
-  return apiRequest.get<BookingPolicy>(`/organizations/${orgId}/policy`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await apiRequest.get<RawBookingPolicy>(`/organizations/${orgId}/policy`, { headers: { Authorization: `Bearer ${token}` } });
+  return {
+    data: {
+      id: res.data.ID,
+      organization_id: res.data.OrganizationID,
+      max_booking_duration_min: res.data.MaxBookingDurationMin,
+      booking_window_days: res.data.BookingWindowDays,
+      max_active_bookings_per_user: res.data.MaxActiveBookingsPerUser,
+      created_at: res.data.CreatedAt,
+      updated_at: res.data.UpdatedAt,
+    } as BookingPolicy
+  }
 }
 
 export async function updateBookingPolicy(

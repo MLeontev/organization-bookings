@@ -27,6 +27,7 @@ import {
   updateCustomRole,
   updateMember,
 } from '../api/orgMembershipApi'
+import { BookingPoliciesTab } from './organization/components/BookingPoiliciesTab'
 import { RbacProvider } from '../rbac/RbacContext'
 import { InvitesTab } from './organization/components/InvitesTab'
 import { MembersTab } from './organization/components/MembersTab'
@@ -35,7 +36,7 @@ import { RolesTab } from './organization/components/RolesTab'
 import { TabButton } from './organization/components/TabButton'
 import { type RoleFormErrors } from './organization/types'
 
-type TabKey = 'overview' | 'roles' | 'members' | 'invites'
+type TabKey = 'overview' | 'roles' | 'members' | 'invites' | 'booking-rules'
 
 type OrganizationRole = OrganizationRolesResponse['roles'][number]
 
@@ -538,9 +539,16 @@ export function OrganizationPage() {
             <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')}>Роли</TabButton>
             <TabButton active={activeTab === 'members'} onClick={() => setActiveTab('members')}>Участники</TabButton>
             <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')}>Приглашения</TabButton>
+            <TabButton active={activeTab === 'booking-rules'} onClick={() => setActiveTab('booking-rules')}>Правила бронирования</TabButton>
           </div>
 
           {activeTab === 'overview' && <OverviewTab access={access} organizationRoles={roles} />}
+
+          {activeTab === 'booking-rules' && (
+            <BookingPoliciesTab
+                organizationId={organizationId}
+              />
+          )}
 
           {activeTab === 'roles' && (
             <RolesTab
