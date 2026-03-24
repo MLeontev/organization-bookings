@@ -73,6 +73,12 @@ function AppLayout() {
                         to="/bookings"
                         className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                     >
+                        Создать организацию
+                    </Link>
+                    <Link
+                        to="/bookings"
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    >
                         Мои бронирования
                     </Link>
                     <button
