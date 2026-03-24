@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { getMyProfile, type UserProfile } from '../api/orgMembershipApi'
-import { getAllOrganizations, getDeactivatedOrganizations, type Organization } from '../api/organizationsApi';
+import { deleteOrganization, getAllOrganizations, getDeactivatedOrganizations, type Organization } from '../api/organizationsApi';
 import keycloak from '../keycloak';
+import { Can } from '../rbac/Can'
 
 export function DashboardPage() {
   const statusOptions: Array<{ value: 'active' | 'archived' | ''; label: string }> = [
@@ -26,6 +27,7 @@ export function DashboardPage() {
     if (keycloak.token) {
       setToken(keycloak.token);
     }
+    console.log(keycloak.tokenParsed)
   }, [keycloak.token]);
 
     useEffect(() => {
@@ -92,6 +94,25 @@ export function DashboardPage() {
 
     void loadOrganizations();
   }, [statusFilter, token]);
+
+  const handleDeactivate = async (orgId: string) => {
+    if (!confirm('Точно деактивировать организацию?')) return
+
+    try {
+      await deleteOrganization(keycloak.token!, orgId)
+
+      // обновляем UI
+      setOrganizations(prev =>
+        prev.map(org =>
+          org.id === orgId
+            ? { ...org, status: 'archived' }
+            : org
+        )
+      )
+    } catch (err) {
+      alert('Ошибка при деактивации организации')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -161,19 +182,30 @@ export function DashboardPage() {
                 <p className="mt-1 text-sm text-slate-600">
                   Статус: {org.status === 'active' ? 'Активна' : 'Деактивирована'}
                 </p>
-                <div className="mt-3 flex gap-3">
+                <div className="mt-3 flex gap-3 items-center">
                   <Link
                     to={`/organizations/${org.id}`}
                     className="text-sm text-sky-600 hover:underline"
                   >
                     Управление
                   </Link>
+
                   <Link
                     to={`/organizations/${org.id}/bookings`}
                     className="text-sm text-sky-600 hover:underline"
                   >
                     Бронирования
                   </Link>
+
+                  <Can permission="POLICIES_LIST">
+                    <button
+                      onClick={() => handleDeactivate(org.id)}
+                      disabled={org.status !== 'active'}
+                      className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      Деактивировать
+                    </button>
+                  </Can>
                 </div>
               </div>
             ))}

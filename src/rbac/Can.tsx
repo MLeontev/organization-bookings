@@ -24,6 +24,11 @@ export function Can({
   const allowedByRole = role ? hasRole(role) : true
 
   const allowed = allowedByPermission && allowedByAnyOf && allowedByAllOf && allowedByRole
+  
+  console.log({
+    permission,
+    canResult: permission ? can(permission) : null,
+  })
 
   if (!allowed) {
     return <>{fallback}</>

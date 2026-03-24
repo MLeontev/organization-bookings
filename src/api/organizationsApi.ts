@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'http://62.60.247.138:8087/api/v1';
+const API_BASE = '/api/v1';
 
 export type Organization = {
   id: string;
