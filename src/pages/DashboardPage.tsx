@@ -1,26 +1,36 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Alert } from '../components/Alert'
-import { getMyOrganizations, getMyProfile, type UserOrganizationsResponse, type UserProfile } from '../api/orgMembershipApi'
-import { formatMembershipStatus } from '../utils/statuses'
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Alert } from '../components/Alert';
+import { getMyProfile, type UserProfile } from '../api/orgMembershipApi'
+import { deleteOrganization, getAllOrganizations, getDeactivatedOrganizations, type Organization } from '../api/organizationsApi';
+import keycloak from '../keycloak';
+import { Can } from '../rbac/Can'
 
 export function DashboardPage() {
-  const statusOptions: Array<{ value: string; label: string }> = [
+  const statusOptions: Array<{ value: 'active' | 'archived' | ''; label: string }> = [
     { value: '', label: 'Все статусы' },
-    { value: 'Active', label: 'Активные' },
-    { value: 'Deactivated', label: 'Деактивированные' },
-    { value: 'Removed', label: 'Удалённые' },
-  ]
+    { value: 'active', label: 'Активные' },
+    { value: 'archived', label: 'Деактивированные' },
+  ];
 
   const [profileLoading, setProfileLoading] = useState(true)
-  const [organizationsLoading, setOrganizationsLoading] = useState(true)
   const [profileError, setProfileError] = useState('')
-  const [organizationsError, setOrganizationsError] = useState('')
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [organizations, setOrganizations] = useState<UserOrganizationsResponse['organizations']>([])
-  const [statusFilter, setStatusFilter] = useState('')
+  const [token, setToken] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | ''>('');
 
+  // Берём токен после инициализации Keycloak
   useEffect(() => {
+    if (keycloak.token) {
+      setToken(keycloak.token);
+    }
+    console.log(keycloak.tokenParsed)
+  }, [keycloak.token]);
+
+    useEffect(() => {
     let mounted = true
 
     const loadProfile = async () => {
@@ -52,37 +62,57 @@ export function DashboardPage() {
     }
   }, [])
 
+  // Загружаем организации при смене фильтра или когда есть токен
   useEffect(() => {
-    let mounted = true
-
     const loadOrganizations = async () => {
-      setOrganizationsLoading(true)
-      setOrganizationsError('')
+      if (!token) return;
+
+      setLoading(true);
+      setError('');
+
       try {
-        const myOrganizations = await getMyOrganizations(statusFilter || undefined)
-
-        if (!mounted) {
-          return
+        let response;
+        if (statusFilter === 'archived') {
+          response = await getDeactivatedOrganizations(token);
+        } else {
+          response = await getAllOrganizations(token);
         }
 
-        setOrganizations(myOrganizations.organizations)
+        const orgs: Organization[] = Array.isArray(response.data) ? response.data : [];
+        if (statusFilter && statusFilter !== 'archived') {
+          // для фильтра "active", фильтруем, если нужно
+          setOrganizations(orgs.filter(org => org.status === statusFilter));
+        } else {
+          setOrganizations(orgs);
+        }
       } catch (err) {
-        if (mounted) {
-          setOrganizationsError(err instanceof Error ? err.message : 'Не удалось загрузить организации')
-        }
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить организации');
       } finally {
-        if (mounted) {
-          setOrganizationsLoading(false)
-        }
+        setLoading(false);
       }
-    }
+    };
 
-    void loadOrganizations()
+    void loadOrganizations();
+  }, [statusFilter, token]);
 
-    return () => {
-      mounted = false
+  const handleDeactivate = async (orgId: string) => {
+    if (!confirm('Точно деактивировать организацию?')) return
+
+    try {
+      await deleteOrganization(keycloak.token!, orgId)
+
+      // обновляем UI
+      setOrganizations(prev =>
+        prev.map(org =>
+          org.id === orgId
+            ? { ...org, status: 'archived' }
+            : org
+        )
+      )
+    } catch (err) {
+      alert('Ошибка при деактивации организации')
     }
-  }, [statusFilter])
+  }
 
   return (
     <div className="space-y-6">
@@ -107,70 +137,81 @@ export function DashboardPage() {
           </div>
         )}
       </section>
-
+      
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold text-slate-900">Мои организации</h2>
-          <div className="flex flex-wrap gap-2">
-            {statusOptions.map((status) => (
-              <button
-                key={status.value || 'all'}
-                type="button"
-                onClick={() => setStatusFilter(status.value)}
-                className={`rounded-full px-3 py-1 text-sm transition ${
-                  statusFilter === status.value
-                    ? 'bg-sky-600 text-white'
-                    : 'border border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                {status.label}
-              </button>
-            ))}
-          </div>
+        <h2 className="text-xl font-semibold text-slate-900">Мои организации</h2>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {statusOptions.map(status => (
+            <button
+              key={status.value || 'all'}
+              type="button"
+              onClick={() => setStatusFilter(status.value)}
+              className={`rounded-full px-3 py-1 text-sm transition ${
+                statusFilter === status.value
+                  ? 'bg-sky-600 text-white'
+                  : 'border border-slate-200 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {status.label}
+            </button>
+          ))}
         </div>
 
-        {organizationsError && (
-          <Alert tone="error" onClose={() => setOrganizationsError('')}>
-            {organizationsError}
-          </Alert>
+        {error && (
+          <div className="mt-3">
+            <Alert tone="error" onClose={() => setError('')}>
+              {error}
+            </Alert>
+          </div>
         )}
 
-        {organizationsLoading && <p className="text-slate-600">Загружаем данные</p>}
+        {loading && <p className="mt-3 text-slate-600">Загружаем данные</p>}
 
-        {!organizationsLoading && !organizationsError && organizations.length === 0 && (
-          <p className="text-slate-600">Организаций пока нет</p>
+        {!loading && !error && organizations.length === 0 && (
+          <p className="mt-3 text-slate-600">Организаций пока нет</p>
         )}
 
-        {!organizationsLoading && !organizationsError && organizations.length > 0 && (
-          <div className="grid gap-3 md:grid-cols-2">
-            {organizations.map((organization, index) => (
-                <div
-                    key={organization.membershipId}
-                    className="rounded-lg border border-slate-200 p-4 transition hover:border-sky-400 hover:bg-sky-50"
-                >
-                  <p className="font-semibold text-slate-900">Организация {index + 1}</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Статус членства: {formatMembershipStatus(organization.status)}
-                  </p>
-                  <div className="mt-3 flex gap-3">
-                    <Link
-                        to={`/organizations/${organization.organizationId}`}
-                        className="text-sm text-sky-600 hover:underline"
+        {!loading && !error && organizations.length > 0 && (
+          <div className="grid gap-3 md:grid-cols-2 mt-3">
+            {organizations.map(org => (
+              <div
+                key={org.id}
+                className="rounded-lg border border-slate-200 p-4 transition hover:border-sky-400 hover:bg-sky-50"
+              >
+                <p className="font-semibold text-slate-900">{org.name}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Статус: {org.status === 'active' ? 'Активна' : 'Деактивирована'}
+                </p>
+                <div className="mt-3 flex gap-3 items-center">
+                  <Link
+                    to={`/organizations/${org.id}`}
+                    className="text-sm text-sky-600 hover:underline"
+                  >
+                    Управление
+                  </Link>
+
+                  <Link
+                    to={`/organizations/${org.id}/bookings`}
+                    className="text-sm text-sky-600 hover:underline"
+                  >
+                    Бронирования
+                  </Link>
+
+                  <Can permission="POLICIES_LIST">
+                    <button
+                      onClick={() => handleDeactivate(org.id)}
+                      disabled={org.status !== 'active'}
+                      className="text-sm text-red-600 hover:underline disabled:opacity-50"
                     >
-                      Управление
-                    </Link>
-                    <Link
-                        to={`/organizations/${organization.organizationId}/bookings`}
-                        className="text-sm text-sky-600 hover:underline"
-                    >
-                      Бронирования
-                    </Link>
-                  </div>
+                      Деактивировать
+                    </button>
+                  </Can>
                 </div>
+              </div>
             ))}
           </div>
         )}
       </section>
     </div>
-  )
+  );
 }

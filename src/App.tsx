@@ -4,6 +4,7 @@ import { useAuth } from './auth/useAuth'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvitationPage } from './pages/InvitationPage'
 import { OrganizationPage } from './pages/OrganizationPage'
+import { CreateOrganizationPage } from './pages/organization/components/CreateOrganization.tsx'
 import { RegisterPage } from './pages/RegisterPage'
 import {BookingsPage} from "./pages/bookings/BookingsPage.tsx";
 import {AvailableResourcesPage} from "./pages/bookings/AvailableResourcesPage.tsx";
@@ -70,6 +71,12 @@ function AppLayout() {
             {status === 'authenticated' && (
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Link
+                        to="/organization/create"
+                        className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                    >
+                        Создать организацию
+                    </Link>
+                    <Link
                         to="/bookings"
                         className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700"
                     >
@@ -109,6 +116,10 @@ function AppLayout() {
           <Route path="/bookings" element={status === 'authenticated' ? <MyBookingsPage /> : <LoginScreen />} />
           <Route path="/invite/:token" element={<InvitationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="/organization/create"
+            element={status === 'authenticated' ? <CreateOrganizationPage /> : <LoginScreen />}
+          />
         </Routes>
       </main>
     </div>
