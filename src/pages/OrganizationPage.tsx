@@ -32,11 +32,12 @@ import { RbacProvider } from '../rbac/RbacContext'
 import { InvitesTab } from './organization/components/InvitesTab'
 import { MembersTab } from './organization/components/MembersTab'
 import { OverviewTab } from './organization/components/OverviewTab'
+import { ResourcesTab } from './organization/components/ResourcesTab'
 import { RolesTab } from './organization/components/RolesTab'
 import { TabButton } from './organization/components/TabButton'
 import { type RoleFormErrors } from './organization/types'
 
-type TabKey = 'overview' | 'roles' | 'members' | 'invites' | 'booking-rules'
+type TabKey = 'overview' | 'resources' | 'roles' | 'members' | 'invites' | 'booking-rules'
 
 type OrganizationRole = OrganizationRolesResponse['roles'][number]
 
@@ -536,6 +537,7 @@ export function OrganizationPage() {
         <RbacProvider permissions={permissions} roles={access?.roles ?? []}>
           <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
             <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>Обзор</TabButton>
+            <TabButton active={activeTab === 'resources'} onClick={() => setActiveTab('resources')}>Ресурсы</TabButton>
             <TabButton active={activeTab === 'roles'} onClick={() => setActiveTab('roles')}>Роли</TabButton>
             <TabButton active={activeTab === 'members'} onClick={() => setActiveTab('members')}>Участники</TabButton>
             <TabButton active={activeTab === 'invites'} onClick={() => setActiveTab('invites')}>Приглашения</TabButton>
@@ -543,6 +545,14 @@ export function OrganizationPage() {
           </div>
 
           {activeTab === 'overview' && <OverviewTab access={access} organizationRoles={roles} />}
+
+          {activeTab === 'resources' && (
+            <ResourcesTab
+              organizationId={organizationId}
+              permissions={permissions}
+              roles={roles}
+            />
+          )}
 
           {activeTab === 'booking-rules' && (
             <BookingPoliciesTab
