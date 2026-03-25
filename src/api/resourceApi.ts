@@ -46,32 +46,32 @@ export async function getResources(organizationId: string, status?: ResourceStat
     query.set('status', status)
   }
 
-  return apiRequest<ResourceItem[]>(`/resources?${query.toString()}`)
+  return apiRequest<ResourceItem[]>(`/resources/api/resources?${query.toString()}`)
 }
 
 export async function createResource(payload: CreateResourcePayload) {
-  return apiRequest<ResourceItem>('/resources', {
+  return apiRequest<ResourceItem>('/resources/api/resources', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
 export async function updateResource(resourceId: string, payload: UpdateResourcePayload) {
-  return apiRequest<ResourceItem>(`/resources/${resourceId}`, {
+  return apiRequest<ResourceItem>(`/resources/api/resources/${resourceId}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
 }
 
 export async function updateResourceStatus(resourceId: string, status: ResourceStatus) {
-  return apiRequest<ResourceItem>(`/resources/${resourceId}/status`, {
+  return apiRequest<ResourceItem>(`/resources/api/resources/${resourceId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
 }
 
 export async function deleteResource(resourceId: string) {
-  return apiRequest<void>(`/resources/${resourceId}`, {
+  return apiRequest<void>(`/resources/api/resources/${resourceId}`, {
     method: 'DELETE',
   })
 }
