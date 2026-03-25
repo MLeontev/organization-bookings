@@ -3,8 +3,6 @@ import { apiRequest } from './http';
 export type BookingPolicySnapshot = {
   maxDurationHours: number;
   maxBookingsPerUser: number;
-  allowedTimeFrom: string;
-  allowedTimeTo: string;
 };
 
 export type BookingItem = {
