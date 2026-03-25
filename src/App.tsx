@@ -9,6 +9,7 @@ import { RegisterPage } from './pages/RegisterPage'
 import {BookingsPage} from "./pages/bookings/BookingsPage.tsx";
 import {AvailableResourcesPage} from "./pages/bookings/AvailableResourcesPage.tsx";
 import {MyBookingsPage} from "./pages/bookings/MyBookingsPage.tsx";
+import {BookingDetailPage} from "./pages/bookings/BookingDetailPage.tsx";
 
 function LoadingScreen() {
   return (
@@ -114,6 +115,10 @@ function AppLayout() {
               element={status === 'authenticated' ? <AvailableResourcesPage /> : <LoginScreen />}
           />
           <Route path="/bookings" element={status === 'authenticated' ? <MyBookingsPage /> : <LoginScreen />} />
+          <Route
+              path="/organizations/:organizationId/bookings/:bookingId"
+              element={status === 'authenticated' ? <BookingDetailPage /> : <LoginScreen />}
+          />
           <Route path="/invite/:token" element={<InvitationPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
           <Route
