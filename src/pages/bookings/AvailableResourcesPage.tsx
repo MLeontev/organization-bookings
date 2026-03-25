@@ -221,12 +221,6 @@ export function AvailableResourcesPage() {
                                     onChange={() => toggleSelect(resource.id)}
                                     className="h-4 w-4 accent-sky-600"
                                 />
-                                <div className="flex-1 space-y-1">
-                                  <p className="font-medium text-slate-900">{resource.name}</p>
-                                  <p className="text-xs text-slate-500">{resourceTypeLabel(resource.type)}</p>
-                                  {resource.officeAddress && <p className="text-xs text-slate-500">Адрес: {resource.officeAddress}{resource.floor !== null ? `, этаж ${resource.floor}` : ''}</p>}
-                                  {resource.description && <p className="text-xs text-slate-500">Описание: {resource.description}</p>}
-                                </div>
                                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Свободен</span>
                               </label>
                           ))}
