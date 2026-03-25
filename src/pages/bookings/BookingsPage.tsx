@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
-import { getBookings, cancelBooking, type BookingGroup } from '../../api/bookingApi'
-import {getMyAccess, getMyProfile, getUserByIdentityId, type UserProfileByIdentity} from '../../api/orgMembershipApi'
+import { getBookings, type BookingGroup } from '../../api/bookingApi'
 
 type DisplayStatus = 'active' | 'expired' | 'cancelled'
 type StatusFilter = 'all' | DisplayStatus
@@ -50,10 +49,6 @@ export function BookingsPage() {
   const [error, setError] = useState('')
   const [bookings, setBookings] = useState<BookingGroup[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
-  const [canManageAny, setCanManageAny] = useState(false)
-  const [myIdentityId, setMyIdentityId] = useState('')
-  const [userProfiles, setUserProfiles] = useState<Record<string, UserProfileByIdentity>>({})
 
   useEffect(() => {
     let mounted = true
@@ -61,26 +56,8 @@ export function BookingsPage() {
       setLoading(true)
       setError('')
       try {
-        const [data, access, profile] = await Promise.all([
-          getBookings(organizationId),
-          getMyAccess(organizationId),
-          getMyProfile(),
-        ])
-        if (mounted) {
-          setBookings(data)
-          setCanManageAny(access.permissions.includes('BOOKINGS_MANAGE_ANY'))
-          setMyIdentityId(profile.identityId)
-
-          const uniqueIds = [...new Set(data.map(b => b.identityId))]
-          const results = await Promise.allSettled(uniqueIds.map(id => getUserByIdentityId(id)))
-          const profileMap: Record<string, UserProfileByIdentity> = {}
-          results.forEach((result, i) => {
-            if (result.status === 'fulfilled') {
-              profileMap[uniqueIds[i]] = result.value
-            }
-          })
-          if (mounted) setUserProfiles(profileMap)
-        }
+        const data = await getBookings(organizationId)
+        if (mounted) setBookings(data)
       } catch (err) {
         if (mounted) setError(err instanceof Error ? err.message : 'Не удалось загрузить бронирования')
       } finally {
@@ -90,26 +67,6 @@ export function BookingsPage() {
     void load()
     return () => { mounted = false }
   }, [organizationId])
-
-  const handleCancel = async (id: string) => {
-    if (!confirm('Отменить бронирование?')) return
-    setCancellingId(id)
-    setError('')
-    try {
-      await cancelBooking(id, organizationId)
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'Cancelled' as const } : b))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось отменить бронирование')
-    } finally {
-      setCancellingId(null)
-    }
-  }
-
-  const canCancel = (booking: BookingGroup) => {
-    if (getDisplayStatus(booking) !== 'active') return false
-    if (canManageAny) return true
-    return booking.identityId === myIdentityId
-  }
 
   const filtered = sortBookings(
     statusFilter === 'all'
@@ -121,7 +78,7 @@ export function BookingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <Link to="/" className="text-sm font-medium text-sky-700 hover:underline">
-          ← Назад на главную
+          ← На главную
         </Link>
         <Link
           to={`/organizations/${organizationId}/bookings/new`}
@@ -133,12 +90,7 @@ export function BookingsPage() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Бронирования</h2>
-            {canManageAny && (
-              <p className="mt-0.5 text-xs text-slate-500">Вы видите все брони организации</p>
-            )}
-          </div>
+          <h2 className="text-xl font-semibold text-slate-900">Бронирования</h2>
           <div className="flex flex-wrap gap-2">
             {(['all', 'active', 'expired', 'cancelled'] as StatusFilter[]).map(s => (
               <button
@@ -164,71 +116,33 @@ export function BookingsPage() {
         )}
 
         {!loading && !error && filtered.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {filtered.map(booking => {
               const ds = getDisplayStatus(booking)
-              const isOwn = booking.identityId === myIdentityId
               return (
-                <div
+                <Link
                   key={booking.id}
-                  className={`rounded-lg border p-4 ${
+                  to={`/organizations/${organizationId}/bookings/${booking.id}`}
+                  className={`flex items-center justify-between rounded-lg border p-4 transition hover:border-sky-300 hover:bg-sky-50 ${
                     ds === 'active' ? 'border-slate-200' : 'border-slate-100 bg-slate-50 opacity-70'
                   }`}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[ds]}`}>
-                          {STATUS_LABELS[ds]}
-                        </span>
-                        <span className="text-sm text-slate-500">
-                          {booking.bookings.length} {
-                            booking.bookings.length === 1 ? 'ресурс' :
-                            booking.bookings.length < 5 ? 'ресурса' : 'ресурсов'
-                          }
-                        </span>
-                        { isOwn
-                            ? <p className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-950">
-                              {userProfiles[booking.identityId]
-                                  ? `${userProfiles[booking.identityId].firstName} ${userProfiles[booking.identityId].lastName} · ${userProfiles[booking.identityId].email}`
-                                  : booking.identityId}
-                            </p>
-                            : <p className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-950">
-                              {userProfiles[booking.identityId]
-                                  ? `${userProfiles[booking.identityId].firstName} ${userProfiles[booking.identityId].lastName} · ${userProfiles[booking.identityId].email}`
-                                  : booking.identityId}
-                            </p>
-                        }
-
-                      </div>
-                      <div className="text-sm text-slate-700">
-                        <span className="font-medium">{formatDate(booking.startTime)}</span>
-                        <span className="mx-2 text-slate-400">—</span>
-                        <span className="font-medium">{formatDate(booking.endTime)}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {booking.bookings.map(item => (
-                          <span
-                            key={item.id}
-                            className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
-                          >
-                            {item.resourceId}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {canCancel(booking) && (
-                      <button
-                        onClick={() => void handleCancel(booking.id)}
-                        disabled={cancellingId === booking.id}
-                        className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {cancellingId === booking.id ? 'Отменяем...' : 'Отменить'}
-                      </button>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[ds]}`}>
+                      {STATUS_LABELS[ds]}
+                    </span>
+                    <span className="text-sm text-slate-700">
+                      {formatDate(booking.startTime)} — {formatDate(booking.endTime)}
+                    </span>
+                    <span className="text-sm text-slate-400">
+                      {booking.bookings.length} {
+                        booking.bookings.length === 1 ? 'ресурс' :
+                        booking.bookings.length < 5 ? 'ресурса' : 'ресурсов'
+                      }
+                    </span>
                   </div>
-                </div>
+                  <span className="text-sm text-sky-600">Подробнее →</span>
+                </Link>
               )
             })}
           </div>
