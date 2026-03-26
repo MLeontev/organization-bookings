@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getMyOrganizations } from '../../api/orgMembershipApi'
 import { getMyBookings, type BookingGroup } from '../../api/bookingApi'
+import { getOrganization } from '../../api/organizationsApi'
+import keycloak from '../../keycloak'
 import {BookingRow} from "./components/BookingRow.tsx";
 
 type OrgBookings = {
   organizationId: string
+  organizationName: string
   index: number
   bookings: BookingGroup[]
   loading: boolean
@@ -64,8 +67,19 @@ export function MyBookingsPage() {
         const { organizations } = await getMyOrganizations('Active')
         if (!mounted) return
 
+        let accessToken = keycloak.token ?? null
+        if (keycloak.authenticated) {
+          try {
+            await keycloak.updateToken(30)
+            accessToken = keycloak.token ?? accessToken
+          } catch {
+            // игнорируем, используем текущий токен или fallback-имя организации
+          }
+        }
+
         const initial: OrgBookings[] = organizations.map((org, i) => ({
           organizationId: org.organizationId,
+          organizationName: `Организация ${i + 1}`,
           index: i + 1,
           bookings: [],
           loading: true,
@@ -74,27 +88,44 @@ export function MyBookingsPage() {
         setOrgBookings(initial)
 
         await Promise.all(
-          organizations.map(async (org) => {
-            try {
-              const data = await getMyBookings(org.organizationId)
-              if (!mounted) return
-              setOrgBookings(prev =>
-                prev.map(o =>
-                  o.organizationId === org.organizationId
-                    ? { ...o, bookings: data, loading: false }
-                    : o
-                )
-              )
-            } catch (err) {
-              if (!mounted) return
-              setOrgBookings(prev =>
-                prev.map(o =>
-                  o.organizationId === org.organizationId
-                    ? { ...o, loading: false, error: err instanceof Error ? err.message : 'Ошибка' }
-                    : o
-                )
-              )
-            }
+          organizations.map(async (org, index) => {
+            const [bookingsResult, organizationResult] = await Promise.allSettled([
+              getMyBookings(org.organizationId),
+              accessToken
+                ? getOrganization(accessToken, org.organizationId)
+                : Promise.resolve(null),
+            ])
+
+            if (!mounted) return
+
+            setOrgBookings(prev =>
+              prev.map(o => {
+                if (o.organizationId !== org.organizationId) {
+                  return o
+                }
+
+                const resolvedName =
+                  organizationResult.status === 'fulfilled' && organizationResult.value
+                    ? organizationResult.value.data.name
+                    : o.organizationName || `Организация ${index + 1}`
+
+                if (bookingsResult.status === 'fulfilled') {
+                  return {
+                    ...o,
+                    organizationName: resolvedName,
+                    bookings: bookingsResult.value,
+                    loading: false,
+                  }
+                }
+
+                return {
+                  ...o,
+                  organizationName: resolvedName,
+                  loading: false,
+                  error: bookingsResult.reason instanceof Error ? bookingsResult.reason.message : 'Ошибка',
+                }
+              })
+            )
           })
         )
       } catch (err) {
@@ -164,7 +195,7 @@ export function MyBookingsPage() {
         return (
           <section key={org.organizationId} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-semibold text-slate-900">Организация {org.index}</h3>
+              <h3 className="font-semibold text-slate-900">{org.organizationName}</h3>
               <Link
                 to={`/organizations/${org.organizationId}/bookings/new`}
                 className="rounded-md bg-sky-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-sky-700"
