@@ -170,7 +170,7 @@ export function AvailableResourcesPage() {
                 <button
                     key={d}
                     onClick={() => handleQuickView(d)}
-                    className="rounded-full border border-slate-300 bg-white px-4 py-1 text-sm text-slate-700 hover:bg-sky-50 transition"
+                    className="rounded-full border border-gray-300 bg-white px-4 py-1 text-sm text-slate-700 hover:bg-gray-50 transition-shadow shadow-sm"
                 >
                   {d} дн
                 </button>
@@ -185,24 +185,17 @@ export function AvailableResourcesPage() {
                   type="date"
                   value={fromView ? fromView.toISOString().split('T')[0] : ''}
                   onChange={e => handleDateChange('from', e.target.value)}
-                  className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-300"
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
               />
               <label className="text-sm font-medium">По:</label>
               <input
                   type="date"
                   value={toView ? toView.toISOString().split('T')[0] : ''}
                   onChange={e => handleDateChange('to', e.target.value)}
-                  className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-300"
+                  className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
               />
             </div>
 
-            <button
-                type="button"
-                onClick={() => setSelected(new Set())}
-                className="ml-auto px-3 py-1 text-sm rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition"
-            >
-              Сбросить выбор ресурсов
-            </button>
           </div>
 
           {/* фильтр по типу */}
@@ -211,7 +204,7 @@ export function AvailableResourcesPage() {
             <select
                 value={selectedType}
                 onChange={e => setSelectedType(e.target.value)}
-                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-sky-300"
+                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
             >
               {types.map(t => (
                   <option key={t} value={t}>
@@ -220,6 +213,29 @@ export function AvailableResourcesPage() {
               ))}
             </select>
           </div>
+          <div className="flex flex-wrap items-center gap-3 mt-2">
+            <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                className="ml-auto px-3 py-1 text-sm rounded-md border border-gray-300 bg-white text-slate-700 hover:bg-gray-50 transition-shadow shadow-sm"
+            >
+              Сбросить выбор ресурсов
+            </button>
+            {/* Кнопка бронирования */}
+            <div className="flex justify-end">
+              <button
+                  onClick={() => setModalOpen(true)}
+                  disabled={selected.size === 0 || booking}
+                  className="rounded-md bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {booking && (
+                    <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {booking ? 'Бронируем...' : 'Забронировать'}
+              </button>
+            </div>
+          </div>
+
 
           {loading && <div className="text-sm text-slate-500 mt-1">Загрузка...</div>}
         </section>
@@ -229,6 +245,7 @@ export function AvailableResourcesPage() {
           {error && <Alert tone="error">{error}</Alert>}
           {success && <Alert tone="success">{success}</Alert>}
         </div>
+
 
         {/* Таймлайн */}
         {filtered && fromView && toView && (
@@ -271,20 +288,6 @@ export function AvailableResourcesPage() {
               })}
             </section>
         )}
-
-        {/* Кнопка бронирования */}
-        <div className="flex justify-end">
-          <button
-              onClick={() => setModalOpen(true)}
-              disabled={selected.size === 0 || booking}
-              className="rounded-md bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            {booking && (
-                <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            )}
-            {booking ? 'Бронируем...' : 'Забронировать'}
-          </button>
-        </div>
 
         <BookingModal
             open={modalOpen}

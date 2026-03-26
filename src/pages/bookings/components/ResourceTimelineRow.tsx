@@ -45,7 +45,6 @@ export function ResourceTimelineRow({
             .toString()
             .padStart(2,'0')}`
 
-    // генерируем сетку каждые 30 минут
     const ticks: Date[] = []
     const tickInterval = 30 * 60 * 1000 // 30 минут
     for (let t = from.getTime(); t <= to.getTime(); t += tickInterval) {
@@ -55,8 +54,8 @@ export function ResourceTimelineRow({
     return (
         <div
             onClick={onClick}
-            className={`rounded-xl border p-4 transition cursor-pointer shadow-sm ${
-                selected ? 'bg-sky-50 border-sky-400' : 'bg-white hover:border-slate-300'
+            className={`rounded-xl border border-gray-300 p-4 transition cursor-pointer shadow-sm ${
+                selected ? 'bg-sky-50 border-gray-400' : 'bg-white hover:border-gray-400'
             }`}
         >
             {/* Верхняя инфа */}
@@ -78,7 +77,7 @@ export function ResourceTimelineRow({
                                 ? 'bg-green-100 text-green-700'
                                 : resource.status === 'temporarily_unavailable'
                                     ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-slate-100 text-slate-500'
+                                    : 'bg-gray-100 text-gray-500'
                         }`}
                     >
                         {statusMap[resource.status] || resource.status}
@@ -100,14 +99,14 @@ export function ResourceTimelineRow({
             )}
 
             {/* Таймлайн */}
-            <div className="relative h-10 bg-slate-200 rounded overflow-visible">
+            <div className="relative h-10 bg-gray-100 rounded-md overflow-visible border border-gray-300">
                 {/* сетка */}
                 {ticks.map((tick, i) => {
                     const left = ((tick.getTime() - from.getTime()) / total) * 100
                     return (
                         <div
                             key={i}
-                            className="absolute top-0 h-full w-px bg-slate-300/50"
+                            className="absolute top-0 h-full w-px bg-gray-300/50"
                             style={{ left: `${left}%` }}
                         />
                     )
@@ -127,7 +126,7 @@ export function ResourceTimelineRow({
                     return (
                         <div
                             key={i}
-                            className="absolute h-full bg-red-400/80 hover:bg-red-500 transition pointer-events-auto"
+                            className="absolute h-full bg-red-400/80 hover:bg-red-500 transition pointer-events-auto rounded-sm"
                             style={{ left: `${start}%`, width: `${width}%` }}
                             onMouseEnter={() => setHover(s)}
                             onMouseLeave={() => setHover(null)}
