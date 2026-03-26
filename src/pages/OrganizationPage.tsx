@@ -177,8 +177,14 @@ export function OrganizationPage() {
       setMyIdentityId(myProfile.identityId)
 
       const canListRoles = accessData.permissions.includes('ROLES_LIST')
+      const canManageResources =
+        accessData.permissions.includes('RESOURCES_CREATE') ||
+        accessData.permissions.includes('RESOURCES_UPDATE') ||
+        accessData.permissions.includes('RESOURCES_RULES_MANAGE')
+      const canLoadRoles = canListRoles || canManageResources
+
       const [rolesResult, permissionCatalogResult] = await Promise.allSettled([
-        canListRoles ? getOrganizationRoles(organizationId, true) : Promise.resolve(null),
+        canLoadRoles ? getOrganizationRoles(organizationId, true) : Promise.resolve(null),
         canListRoles ? getPermissionsCatalog(organizationId) : Promise.resolve(null),
       ])
 
