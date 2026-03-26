@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getMyOrganizations } from '../../api/orgMembershipApi'
-import { getMyBookings, cancelBooking, type BookingGroup } from '../../api/bookingApi'
+import { getMyBookings, type BookingGroup } from '../../api/bookingApi'
+import {BookingRow} from "./components/BookingRow.tsx";
 
 type OrgBookings = {
   organizationId: string
@@ -19,12 +20,6 @@ function getDisplayStatus(booking: BookingGroup): DisplayStatus {
   if (booking.status === 'Cancelled') return 'cancelled'
   if (new Date(booking.endTime) < new Date()) return 'expired'
   return 'active'
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
 }
 
 function sortBookings(bookings: BookingGroup[]): BookingGroup[] {
@@ -52,18 +47,12 @@ const STATUS_LABELS: Record<DisplayStatus, string> = {
   cancelled: 'Отменено',
 }
 
-const STATUS_STYLES: Record<DisplayStatus, string> = {
-  active: 'bg-green-100 text-green-700',
-  expired: 'bg-blue-100 text-blue-600',
-  cancelled: 'bg-slate-100 text-slate-500',
-}
 
 export function MyBookingsPage() {
   const [orgsLoading, setOrgsLoading] = useState(true)
   const [orgsError, setOrgsError] = useState('')
   const [orgBookings, setOrgBookings] = useState<OrgBookings[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -118,30 +107,6 @@ export function MyBookingsPage() {
     void load()
     return () => { mounted = false }
   }, [])
-
-  const handleCancel = async (bookingId: string, organizationId: string) => {
-    if (!confirm('Отменить бронирование?')) return
-    setCancellingId(bookingId)
-    try {
-      await cancelBooking(bookingId, organizationId)
-      setOrgBookings(prev =>
-        prev.map(o =>
-          o.organizationId === organizationId
-            ? {
-                ...o,
-                bookings: o.bookings.map(b =>
-                  b.id === bookingId ? { ...b, status: 'Cancelled' as const } : b
-                ),
-              }
-            : o
-        )
-      )
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Не удалось отменить бронирование')
-    } finally {
-      setCancellingId(null)
-    }
-  }
 
   const filterBookings = (bookings: BookingGroup[]) => {
     if (statusFilter === 'all') return sortBookings(bookings)
@@ -217,60 +182,13 @@ export function MyBookingsPage() {
 
             {!org.loading && !org.error && filtered.length > 0 && (
               <div className="space-y-3">
-                {filtered.map(booking => {
-                  const ds = getDisplayStatus(booking)
-                  return (
-                    <div
-                      key={booking.id}
-                      className={`rounded-lg border p-4 ${
-                        ds === 'active' ? 'border-slate-200' : 'border-slate-100 bg-slate-50 opacity-70'
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[ds]}`}>
-                              {STATUS_LABELS[ds]}
-                            </span>
-                            <span className="text-sm text-slate-500">
-                              {booking.bookings.length} {
-                                booking.bookings.length === 1 ? 'ресурс' :
-                                booking.bookings.length < 5 ? 'ресурса' : 'ресурсов'
-                              }
-                            </span>
-                          </div>
-
-                          <div className="text-sm text-slate-700">
-                            <span className="font-medium">{formatDate(booking.startTime)}</span>
-                            <span className="mx-2 text-slate-400">—</span>
-                            <span className="font-medium">{formatDate(booking.endTime)}</span>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            {booking.bookings.map(item => (
-                              <span
-                                key={item.id}
-                                className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
-                              >
-                                {item.resourceId}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        {ds === 'active' && (
-                          <button
-                            onClick={() => void handleCancel(booking.id, org.organizationId)}
-                            disabled={cancellingId === booking.id}
-                            className="rounded-md border border-red-200 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {cancellingId === booking.id ? 'Отменяем...' : 'Отменить'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                {filtered.map(booking => (
+                    <BookingRow
+                        key={booking.id}
+                        booking={booking}
+                        organizationId={org.organizationId}
+                    />
+                ))}
               </div>
             )}
           </section>
