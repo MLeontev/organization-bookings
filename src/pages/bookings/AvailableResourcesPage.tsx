@@ -12,12 +12,18 @@ function resourceTypeLabel(type: string) {
   }
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+function localToUTC(dateStr: string) {
+  const localDate = new Date(dateStr)
+  return localDate.toISOString() // вернёт ISO в UTC
 }
 
+// Форматирование локальной даты для отображения
+function formatDate(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+// Конвертируем Date в value для <input type="datetime-local">
 function toLocalInput(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -105,8 +111,8 @@ export function AvailableResourcesPage() {
       const result = await createBooking({
         organizationId,
         resourceIds: Array.from(selected),
-        startTime: from + ':00',
-        endTime: to + ':00',
+        startTime: localToUTC(from),
+        endTime: localToUTC(to),
       })
       const count = result.bookings.length
       setSuccess(`Забронировано ${count} ${count === 1 ? 'ресурс' : count < 5 ? 'ресурса' : 'ресурсов'}`)
@@ -262,7 +268,7 @@ export function AvailableResourcesPage() {
                                           <p className="text-xs text-slate-500">Нет данных о занятости</p>
                                       ) : resource.busySlots.map((slot, i) => (
                                           <p key={i} className="text-xs text-slate-600">
-                                            {formatDate(slot.startTime)} — {formatDate(slot.endTime)}
+                                            {formatDate(new Date(slot.startTime))} — {formatDate(new Date(slot.endTime))}
                                           </p>
                                       ))}
                                     </div>

@@ -9,14 +9,13 @@ type DisplayStatus = 'active' | 'expired' | 'cancelled'
 
 function getDisplayStatus(booking: BookingGroup): DisplayStatus {
   if (booking.status === 'Cancelled') return 'cancelled'
-  if (new Date(booking.endTime) < new Date()) return 'expired'
+  if (booking.endTimeLocal < new Date()) return 'expired'
   return 'active'
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso)
+function formatDate(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getUTCDate())}.${pad(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 const STATUS_LABELS: Record<DisplayStatus, string> = {
@@ -59,8 +58,7 @@ export function BookingDetailPage() {
         const canManageAny = access.permissions.includes('BOOKINGS_MANAGE_ANY')
         const canCancelOwn = access.permissions.includes('BOOKINGS_CANCEL_OWN')
         const isOwn = data.identityId === profile.identityId
-        const ds = data.status === 'Cancelled' ? 'cancelled' :
-            new Date(data.endTime) < new Date() ? 'expired' : 'active'
+        const ds = getDisplayStatus(data)
 
         setCanCancel(ds === 'active' && (canManageAny || (canCancelOwn && isOwn)))
 
@@ -152,12 +150,12 @@ export function BookingDetailPage() {
                   <div>
                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Период</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">
-                      {formatDate(booking.startTime)} — {formatDate(booking.endTime)}
+                      {formatDate(booking.startTimeLocal)} — {formatDate(booking.endTimeLocal)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Создано</p>
-                    <p className="mt-1 text-sm text-slate-700">{formatDate(booking.createdAt)}</p>
+                    <p className="mt-1 text-sm text-slate-700">{formatDate(new Date(booking.createdAt))}</p>
                   </div>
                   <div>
                     <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Владелец</p>
@@ -175,8 +173,8 @@ export function BookingDetailPage() {
                 <h3 className="font-semibold text-slate-900 mb-3">
                   Ресурсы
                   <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-      {booking.bookings.length}
-    </span>
+                {booking.bookings.length}
+              </span>
                 </h3>
                 <div className="space-y-3">
                   {booking.bookings.map(item => {
@@ -198,8 +196,8 @@ export function BookingDetailPage() {
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-slate-100 text-slate-500'
                             }`}>
-              {item.status === 'Active' ? 'Активен' : 'Отменён'}
-            </span>
+                        {item.status === 'Active' ? 'Активен' : 'Отменён'}
+                      </span>
                           </div>
                           {res.officeAddress && (
                               <div className="text-xs text-slate-500">
