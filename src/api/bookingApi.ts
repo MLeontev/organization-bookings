@@ -34,8 +34,8 @@ export type AvailableResource = {
 export type BusySlot = {
   startTime: string;
   endTime: string;
-  startTimeLocal?: Date;
-  endTimeLocal?: Date;
+  startTimeLocal: Date;
+  endTimeLocal: Date;
 };
 
 export type ResourceSchedule = {
@@ -97,11 +97,23 @@ export async function getBookingById(id: string, organizationId: string) {
   return convertBookingToLocal(booking);
 }
 
-export async function createBooking(payload: CreateBookingGroupPayload) {
+export async function createBooking(payload: {
+  organizationId: string
+  resourceIds: string[]
+  startTime: Date
+  endTime: Date
+}) {
+  // конвертируем Date -> UTC ISO перед отправкой на сервер
+  const body = {
+    ...payload,
+    startTime: payload.startTime.toISOString(),
+    endTime: payload.endTime.toISOString(),
+  }
+
   return apiRequest<BookingGroup>(`${BOOKING_BASE}/v1/Bookings`, {
     method: 'POST',
-    body: JSON.stringify(payload),
-  }).then(convertBookingToLocal);
+    body: JSON.stringify(body),
+  }).then(convertBookingToLocal)
 }
 
 export async function cancelBooking(id: string, organizationId: string) {
