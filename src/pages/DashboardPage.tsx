@@ -87,6 +87,7 @@ export function DashboardPage() {
         const orgResults = await Promise.allSettled(
           actualMemberships.map(async (membership) => {
             const response = await getOrganization(token, membership.organizationId);
+
             return {
               ...response.data,
               membershipStatus: membership.status,
