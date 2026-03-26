@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
-import { getMyProfile, type UserProfile } from '../api/orgMembershipApi'
-import { deleteOrganization, getAllOrganizations, getDeactivatedOrganizations, type Organization } from '../api/organizationsApi';
+import { getMyOrganizations, getMyProfile, type UserProfile } from '../api/orgMembershipApi'
+import { deleteOrganization, getOrganization, type Organization } from '../api/organizationsApi';
 import keycloak from '../keycloak';
 import { Can } from '../rbac/Can'
+
+type MembershipStatus = 'Active' | 'Deactivated' | 'Removed'
+
+type DashboardOrganization = Organization & {
+  membershipStatus: MembershipStatus
+  membershipId: string
+}
 
 export function DashboardPage() {
   const statusOptions: Array<{ value: 'active' | 'archived' | ''; label: string }> = [
@@ -17,7 +24,7 @@ export function DashboardPage() {
   const [profileError, setProfileError] = useState('')
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [token, setToken] = useState<string | null>(null);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organizations, setOrganizations] = useState<DashboardOrganization[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived' | ''>('');
@@ -62,7 +69,7 @@ export function DashboardPage() {
     }
   }, [])
 
-  // Загружаем организации при смене фильтра или когда есть токен
+  // Загружаем организации, в которых состоит пользователь, затем получаем их названия по organizationId
   useEffect(() => {
     const loadOrganizations = async () => {
       if (!token) return;
@@ -71,19 +78,35 @@ export function DashboardPage() {
       setError('');
 
       try {
-        let response;
-        if (statusFilter === 'archived') {
-          response = await getDeactivatedOrganizations(token);
-        } else {
-          response = await getAllOrganizations(token);
-        }
+        const { organizations: memberships } = await getMyOrganizations();
 
-        const orgs: Organization[] = Array.isArray(response.data) ? response.data : [];
-        if (statusFilter && statusFilter !== 'archived') {
-          // для фильтра "active", фильтруем, если нужно
-          setOrganizations(orgs.filter(org => org.status === statusFilter));
-        } else {
-          setOrganizations(orgs);
+        const actualMemberships = memberships.filter(
+          (membership) => membership.status !== 'Removed',
+        );
+
+        const orgResults = await Promise.allSettled(
+          actualMemberships.map(async (membership) => {
+            const response = await getOrganization(token, membership.organizationId);
+            return {
+              ...response.data,
+              membershipStatus: membership.status,
+              membershipId: membership.membershipId,
+            } as DashboardOrganization;
+          }),
+        );
+
+        const loadedOrganizations = orgResults
+          .flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+
+        const filteredOrganizations = statusFilter
+          ? loadedOrganizations.filter((org) => org.status === statusFilter)
+          : loadedOrganizations;
+
+        setOrganizations(filteredOrganizations);
+
+        const failedCount = orgResults.filter((result) => result.status === 'rejected').length;
+        if (failedCount > 0) {
+          setError(`Не удалось загрузить ${failedCount} организаций`);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Не удалось загрузить организации');

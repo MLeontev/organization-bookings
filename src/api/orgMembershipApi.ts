@@ -100,6 +100,7 @@ export type InvitationByToken = {
   expiresAt: string;
   canAccept: boolean;
   roleCodes: string[];
+  roleNames: string[];
 };
 
 export type CreateInvitationResponse = {

@@ -68,6 +68,20 @@ export function InvitationPage() {
     }
   }
 
+  const getInvitationRoleLabels = (invitationData: InvitationByToken) => {
+    if (invitationData.roleNames.length > 0) {
+      return invitationData.roleNames
+    }
+
+    if (invitationData.roleCodes.length > 0) {
+      return invitationData.roleCodes.map((roleCode) => formatRoleLabel(roleCode))
+    }
+
+    return []
+  }
+
+  const roleLabels = invitation ? getInvitationRoleLabels(invitation) : []
+
   return (
     <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-xl font-semibold text-slate-900">Приглашение в организацию</h2>
@@ -85,8 +99,8 @@ export function InvitationPage() {
             <span className="font-medium">Срок действия:</span> {new Date(invitation.expiresAt).toLocaleString()}
           </p>
           <p>
-            <span className="font-medium">Роли:</span> {invitation.roleCodes.length > 0
-              ? invitation.roleCodes.map((roleCode) => formatRoleLabel(roleCode)).join(', ')
+            <span className="font-medium">Роли:</span> {roleLabels.length > 0
+              ? roleLabels.join(', ')
               : 'Нет'}
           </p>
 
