@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getResourcesSchedule, createBooking, type ResourceSchedule } from '../../api/bookingApi'
+import { getResources, type ResourceItem } from '../../api/resourceApi'
 
 function resourceTypeLabel(type: string) {
   switch (type) {
@@ -14,16 +15,14 @@ function resourceTypeLabel(type: string) {
 
 function localToUTC(dateStr: string) {
   const localDate = new Date(dateStr)
-  return localDate.toISOString() // вернёт ISO в UTC
+  return localDate.toISOString()
 }
 
-// Форматирование локальной даты для отображения
 function formatDate(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-// Конвертируем Date в value для <input type="datetime-local">
 function toLocalInput(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -41,6 +40,23 @@ export function AvailableResourcesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set())
+  const [resourcesInfo, setResourcesInfo] = useState<Record<string, ResourceItem>>({})
+
+  useEffect(() => {
+    let mounted = true
+    const loadResources = async () => {
+      try {
+        const allResources = await getResources(organizationId)
+        const map: Record<string, ResourceItem> = {}
+        allResources.forEach(r => { map[r.id] = r })
+        if (mounted) setResourcesInfo(map)
+      } catch {
+        // ошибки не критичны
+      }
+    }
+    void loadResources()
+    return () => { mounted = false }
+  }, [organizationId])
 
   const doSearch = async (fromStr: string, toStr: string) => {
     setLoading(true)
@@ -203,7 +219,6 @@ export function AvailableResourcesPage() {
 
         {schedule !== null && (
             <>
-              {/* Доступные ресурсы по категориям */}
               {Object.entries(groupByType(available)).map(([type, resources]) => (
                   <section key={type} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <button
@@ -216,26 +231,40 @@ export function AvailableResourcesPage() {
                     </button>
                     {expandedCategories.has(type) && (
                         <div className="mt-2 space-y-2">
-                          {resources.map(resource => (
-                              <label
-                                  key={resource.id}
-                                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition ${selected.has(resource.id) ? 'border-sky-400 bg-sky-50' : 'border-slate-200 hover:border-slate-300'}`}
-                              >
-                                <input
-                                    type="checkbox"
-                                    checked={selected.has(resource.id)}
-                                    onChange={() => toggleSelect(resource.id)}
-                                    className="h-4 w-4 accent-sky-600"
-                                />
-                                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Свободен</span>
-                              </label>
-                          ))}
+                          {resources.map(resource => {
+                            const info = resourcesInfo[resource.id]
+                            return (
+                                <label
+                                    key={resource.id}
+                                    className={`flex cursor-pointer flex-col gap-1 rounded-lg border p-4 transition ${selected.has(resource.id) ? 'border-sky-400 bg-sky-50' : 'border-slate-200 hover:border-slate-300'}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={selected.has(resource.id)}
+                                        onChange={() => toggleSelect(resource.id)}
+                                        className="h-4 w-4 accent-sky-600"
+                                    />
+                                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">Свободен</span>
+                                  </div>
+                                  {info && (
+                                      <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                                        {info.officeAddress && <div>Адрес: {info.officeAddress}{info.floor !== null ? `, этаж ${info.floor}` : ''}</div>}
+                                        {info.description && <div>Описание: {info.description}</div>}
+                                        <div>Статус ресурса: {info.status === 'available' ? 'Доступен' : info.status === 'temporarily_unavailable' ? 'Временно недоступен' : 'Вне сервиса'}</div>
+                                        {info.bookingRules && (
+                                            <div>Макс. длительность: {info.bookingRules.maxDurationHours} ч. · Разрешённые роли: {info.bookingRules.allowedRoles.join(', ')}</div>
+                                        )}
+                                      </div>
+                                  )}
+                                </label>
+                            )
+                          })}
                         </div>
                     )}
                   </section>
               ))}
 
-              {/* Занятые ресурсы по категориям */}
               {Object.entries(groupByType(busy)).map(([type, resources]) => (
                   <section key={type} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <button
@@ -248,39 +277,51 @@ export function AvailableResourcesPage() {
                     </button>
                     {expandedCategories.has(`busy-${type}`) && (
                         <div className="mt-2 space-y-2">
-                          {resources.map(resource => (
-                              <div key={resource.id} className="rounded-lg border border-slate-200">
-                                <button
-                                    type="button"
-                                    onClick={() => toggleResource(resource.id)}
-                                    className="flex w-full items-center justify-between p-4 text-left"
-                                >
-                                  <div>
-                                    <p className="font-medium text-slate-900">{resource.name}</p>
-                                    <p className="text-xs text-slate-500">{resourceTypeLabel(resource.type)}</p>
-                                  </div>
-                                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-600">Занят</span>
-                                  <span className="text-xs text-slate-400">{expandedResources.has(resource.id) ? '▲' : '▼'}</span>
-                                </button>
-                                {expandedResources.has(resource.id) && (
-                                    <div className="border-t border-slate-100 px-4 py-3 space-y-1">
-                                      {resource.busySlots.length === 0 ? (
-                                          <p className="text-xs text-slate-500">Нет данных о занятости</p>
-                                      ) : resource.busySlots.map((slot, i) => (
-                                          <p key={i} className="text-xs text-slate-600">
-                                            {formatDate(new Date(slot.startTime))} — {formatDate(new Date(slot.endTime))}
-                                          </p>
-                                      ))}
+                          {resources.map(resource => {
+                            const info = resourcesInfo[resource.id]
+                            return (
+                                <div key={resource.id} className="rounded-lg border border-slate-200">
+                                  <button
+                                      type="button"
+                                      onClick={() => toggleResource(resource.id)}
+                                      className="flex w-full items-center justify-between p-4 text-left"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-slate-900">{resource.name}</p>
+                                      <p className="text-xs text-slate-500">{resourceTypeLabel(resource.type)}</p>
                                     </div>
-                                )}
-                              </div>
-                          ))}
+                                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-600">Занят</span>
+                                    <span className="text-xs text-slate-400">{expandedResources.has(resource.id) ? '▲' : '▼'}</span>
+                                  </button>
+                                  {expandedResources.has(resource.id) && (
+                                      <div className="border-t border-slate-100 px-4 py-3 space-y-1">
+                                        {resource.busySlots.length === 0 ? (
+                                            <p className="text-xs text-slate-500">Нет данных о занятости</p>
+                                        ) : resource.busySlots.map((slot, i) => (
+                                            <p key={i} className="text-xs text-slate-600">
+                                              {formatDate(new Date(slot.startTime))} — {formatDate(new Date(slot.endTime))}
+                                            </p>
+                                        ))}
+                                        {info && (
+                                            <div className="text-xs text-slate-500 mt-1 space-y-0.5">
+                                              {info.officeAddress && <div>Адрес: {info.officeAddress}{info.floor !== null ? `, этаж ${info.floor}` : ''}</div>}
+                                              {info.description && <div>Описание: {info.description}</div>}
+                                              <div>Статус ресурса: {info.status === 'available' ? 'Доступен' : info.status === 'temporarily_unavailable' ? 'Временно недоступен' : 'Вне сервиса'}</div>
+                                              {info.bookingRules && (
+                                                  <div>Макс. длительность: {info.bookingRules.maxDurationHours} ч. · Разрешённые роли: {info.bookingRules.allowedRoles.join(', ')}</div>
+                                              )}
+                                            </div>
+                                        )}
+                                      </div>
+                                  )}
+                                </div>
+                            )
+                          })}
                         </div>
                     )}
                   </section>
               ))}
 
-              {/* Кнопка бронирования */}
               {selected.size > 0 && (
                   <div className="flex justify-end gap-3">
                     <button
