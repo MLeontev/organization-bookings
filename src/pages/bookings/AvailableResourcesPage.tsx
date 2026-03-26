@@ -10,11 +10,6 @@ import {
 } from '../../api/bookingApi'
 import { getResources } from '../../api/resourceApi'
 
-function toLocalInput(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
 // Русские категории
 const typeMap: Record<string, string> = {
   all: 'Все',
@@ -80,7 +75,7 @@ export function AvailableResourcesPage() {
     future.setDate(now.getDate() + days)
     setFromView(now)
     setToView(future)
-    void doSearch(toLocalInput(now) + ':00', toLocalInput(future) + ':00')
+    void doSearch(now.toISOString(), future.toISOString())
   }
 
   const toggleSelect = (id: string) => {
