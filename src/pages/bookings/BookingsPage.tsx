@@ -2,53 +2,39 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert } from '../../components/Alert'
 import { getBookings, type BookingGroup } from '../../api/bookingApi'
+import { getUserByIdentityId, type UserProfileByIdentity } from '../../api/orgMembershipApi'
+import { BookingRow } from './components/BookingRow'
 
-type DisplayStatus = 'active' | 'expired' | 'cancelled'
-type StatusFilter = 'all' | DisplayStatus
-
-function getDisplayStatus(booking: BookingGroup): DisplayStatus {
-  if (booking.status === 'Cancelled') return 'cancelled'
-  if (booking.endTimeLocal < new Date()) return 'expired'
-  return 'active'
-}
-
-function formatDate(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-function sortBookings(bookings: BookingGroup[]): BookingGroup[] {
-  return [...bookings].sort((a, b) => {
-    const sa = getDisplayStatus(a)
-    const sb = getDisplayStatus(b)
-    if (sa === 'active' && sb === 'active')
-      return a.startTimeLocal.getTime() - b.startTimeLocal.getTime()
-    if (sa !== 'active' && sb !== 'active')
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    if (sa === 'active') return -1
-    return 1
-  })
-}
-
-const STATUS_LABELS: Record<DisplayStatus, string> = {
-  active: 'Активное',
-  expired: 'Завершено',
-  cancelled: 'Отменено',
-}
-
-const STATUS_STYLES: Record<DisplayStatus, string> = {
-  active: 'bg-green-100 text-green-700',
-  expired: 'bg-blue-100 text-blue-600',
-  cancelled: 'bg-slate-100 text-slate-500',
-}
+type StatusFilter = 'all' | 'active' | 'expired' | 'cancelled'
 
 export function BookingsPage() {
   const { organizationId = '' } = useParams()
+  const [bookings, setBookings] = useState<BookingGroup[]>([])
+  const [users, setUsers] = useState<Record<string, UserProfileByIdentity>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [bookings, setBookings] = useState<BookingGroup[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
+  // сортировка
+  const getDisplayStatus = (booking: BookingGroup): StatusFilter => {
+    if (booking.status === 'Cancelled') return 'cancelled'
+    if (booking.endTimeLocal < new Date()) return 'expired'
+    return 'active'
+  }
+
+  const sortBookings = (bookings: BookingGroup[]) => {
+    return [...bookings].sort((a, b) => {
+      const sa = getDisplayStatus(a)
+      const sb = getDisplayStatus(b)
+      if (sa === 'active' && sb === 'active') return a.startTimeLocal.getTime() - b.startTimeLocal.getTime()
+      if (sa !== 'active' && sb !== 'active') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      if (sa === 'active') return -1
+      return 1
+    })
+  }
+
+  // загрузка бронирований и владельцев
   useEffect(() => {
     let mounted = true
     const load = async () => {
@@ -56,9 +42,25 @@ export function BookingsPage() {
       setError('')
       try {
         const data = await getBookings(organizationId)
-        if (mounted) setBookings(data)
+        if (!mounted) return
+        setBookings(data)
+
+        // уникальные identityId
+        const uniqueIds = Array.from(new Set(data.map(b => b.identityId)))
+        const userEntries = await Promise.all(
+            uniqueIds.map(async id => {
+              try {
+                const user = await getUserByIdentityId(id)
+                return [id, user] as const
+              } catch {
+                return [id, { id, identityId: id, firstName: 'Неизвестно', lastName: '' }] as const
+              }
+            })
+        )
+        if (mounted) setUsers(Object.fromEntries(userEntries))
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Не удалось загрузить бронирования')
+        if (!mounted) return
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить бронирования')
       } finally {
         if (mounted) setLoading(false)
       }
@@ -68,10 +70,22 @@ export function BookingsPage() {
   }, [organizationId])
 
   const filtered = sortBookings(
-      statusFilter === 'all'
-          ? bookings
-          : bookings.filter(b => getDisplayStatus(b) === statusFilter)
+      statusFilter === 'all' ? bookings : bookings.filter(b => getDisplayStatus(b) === statusFilter)
   )
+
+  const handleCancel = async (bookingId: string) => {
+    // Пример отмены (подключи cancelBooking из api)
+    setCancellingId(bookingId)
+    try {
+      // await cancelBooking(bookingId, organizationId)
+      alert(`Бронь ${bookingId} отменена`) // заглушка
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'Cancelled' } : b))
+    } catch {
+      alert('Ошибка при отмене')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   return (
       <div className="space-y-6">
@@ -101,7 +115,7 @@ export function BookingsPage() {
                               : 'border border-slate-200 text-slate-600 hover:border-slate-300'
                       }`}
                   >
-                    {s === 'all' ? 'Все' : STATUS_LABELS[s]}
+                    {s === 'all' ? 'Все' : s === 'active' ? 'Активное' : s === 'expired' ? 'Завершено' : 'Отменено'}
                   </button>
               ))}
             </div>
@@ -109,43 +123,20 @@ export function BookingsPage() {
 
           {error && <Alert tone="error">{error}</Alert>}
           {loading && <p className="text-slate-600">Загружаем данные...</p>}
-
-          {!loading && !error && filtered.length === 0 && (
-              <p className="text-slate-600">Бронирований нет</p>
-          )}
+          {!loading && !error && filtered.length === 0 && <p className="text-slate-600">Бронирований нет</p>}
 
           {!loading && !error && filtered.length > 0 && (
               <div className="space-y-2">
-                {filtered.map(booking => {
-                  const ds = getDisplayStatus(booking)
-                  return (
-                      <Link
-                          key={booking.id}
-                          to={`/organizations/${organizationId}/bookings/${booking.id}`}
-                          className={`flex items-center justify-between rounded-lg border p-4 transition hover:border-sky-300 hover:bg-sky-50 ${
-                              ds === 'active' ? 'border-slate-200' : 'border-slate-100 bg-slate-50 opacity-70'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[ds]}`}>
-                      {STATUS_LABELS[ds]}
-                    </span>
-                          <span className="text-sm text-slate-700">
-                      {formatDate(booking.startTimeLocal)} — {formatDate(booking.endTimeLocal)}
-                    </span>
-                          <span className="text-sm text-slate-400">
-                      {booking.bookings.length}{' '}
-                            {booking.bookings.length === 1
-                                ? 'ресурс'
-                                : booking.bookings.length < 5
-                                    ? 'ресурса'
-                                    : 'ресурсов'}
-                    </span>
-                        </div>
-                        <span className="text-sm text-sky-600">Подробнее →</span>
-                      </Link>
-                  )
-                })}
+                {filtered.map(booking => (
+                    <BookingRow
+                        key={booking.id}
+                        booking={booking}
+                        organizationId={organizationId}
+                        owner={users[booking.identityId]}
+                        onCancel={handleCancel}
+                        cancelling={cancellingId === booking.id}
+                    />
+                ))}
               </div>
           )}
         </section>
