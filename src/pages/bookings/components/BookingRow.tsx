@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { BookingGroup } from '../../../api/bookingApi'
+import type {UserProfileByIdentity} from "../../../api/orgMembershipApi.ts";
 
 type DisplayStatus = 'active' | 'expired' | 'cancelled'
 
@@ -29,8 +30,7 @@ const STATUS_STYLES: Record<DisplayStatus, string> = {
 type Props = {
     booking: BookingGroup
     organizationId: string
-
-    // опционально
+    owner?: UserProfileByIdentity
     onCancel?: (bookingId: string) => void
     cancelling?: boolean
 }
@@ -38,6 +38,7 @@ type Props = {
 export function BookingRow({
                                booking,
                                organizationId,
+                               owner,
                                onCancel,
                                cancelling,
                            }: Props) {
@@ -52,7 +53,7 @@ export function BookingRow({
                     : 'border-slate-100 bg-slate-50 opacity-70'
             }`}
         >
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[ds]}`}
                 >
@@ -70,6 +71,10 @@ export function BookingRow({
                         : booking.bookings.length < 5
                             ? 'ресурса'
                             : 'ресурсов'}
+                </span>
+
+                <span className="text-sm text-slate-500">
+                    {owner ? `Владелец: ${owner.firstName} ${owner.lastName}` : ''}
                 </span>
             </div>
 
