@@ -260,17 +260,6 @@ export function AvailableResourcesPage() {
                 return (
                     <div key={r.id} className="space-y-1">
 
-                      {/* Инфа о ресурсе */}
-                      {res && (
-                          <div className="text-xs text-slate-500 px-1">
-                            <span className="font-medium">{res.name}</span> • {res.type}
-                            {res.officeAddress && ` • ${res.officeAddress}`}
-                            {res.floor !== null && ` • этаж ${res.floor}`}
-                            {res.description && ` • ${res.description}`}
-                            {res.status && ` • Статус: ${res.status}`}
-                          </div>
-                      )}
-
                       <ResourceTimelineRow
                           resource={res}
                           name={r.name}
